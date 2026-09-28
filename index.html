@@ -14,6 +14,7 @@
     <!-- Firebase Cloud SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
     <!-- Client-Side PDF Generation Engines -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -65,6 +66,24 @@
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // A second, independent Firebase App instance used only for creating new
+        // accounts. Calling createUserWithEmailAndPassword on the PRIMARY auth
+        // instance automatically signs the browser in as that brand-new user,
+        // which would kick the Owner/Admin out of their own session the moment
+        // they create an account. Running account creation through this secondary
+        // instance keeps the Owner/Admin's real session untouched.
+        const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+        const secondaryAuth = secondaryApp.auth();
+
+        // Firebase Auth has no concept of "username" — only email. Accounts are
+        // still logged into by username/PIN from the user's point of view, but
+        // under the hood each username is mapped to a synthetic email address.
+        function usernameToEmail(username) {
+            const cleaned = (username || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+            return `${cleaned}@wakalapro.local`;
+        }
 
         const CALLMEBOT_DIRECTORY = {
             "255712897863": "8390915",
@@ -472,7 +491,8 @@
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-600 uppercase">Username</label>
-                <input type="text" id="edit-user-username" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-bold text-blue-700 mt-0.5 focus:outline-none focus:border-emerald-500">
+                <input type="text" id="edit-user-username" readonly class="w-full h-10 p-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 mt-0.5 cursor-not-allowed">
+                <p class="text-[9px] text-slate-400 mt-0.5">Username can't be changed here — it's tied to their real login.</p>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-600 uppercase">Role Access</label>
@@ -511,7 +531,7 @@
                 </select>
                 <input type="tel" id="new-agent-phone" placeholder="Phone Number (+255...)" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-emerald-500">
                 <input type="text" id="new-agent-branch" placeholder="Branch Location Name" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-emerald-500">
-                <input type="password" id="new-agent-password" inputmode="numeric" pattern="[0-9]*" placeholder="Initial Numeric PIN" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-emerald-500">
+                <input type="password" id="new-agent-password" inputmode="numeric" pattern="[0-9]*" placeholder="Initial PIN (min 6 characters)" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-emerald-500">
             </div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeAgentModal()" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-50">Cancel</button>
@@ -551,6 +571,30 @@
         </div>
     </div>
 
+    <!-- MODAL: FORCED PIN CHANGE (shown on first login after account creation/migration —
+         no close/cancel button by design, so it can't be dismissed without setting a real PIN) -->
+    <div id="modal-force-pin-change" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden z-[60]">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 max-w-sm w-full space-y-3 shadow-2xl">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-1.5">
+                <span class="text-xl">🔒</span>
+                <h3 class="font-bold text-slate-900 text-sm">Set Your Own PIN to Continue</h3>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed">Your account was created with the default PIN. For security, choose your own before you can use Wakala Pro.</p>
+            <div class="space-y-2">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">New PIN (min 6 characters)</label>
+                    <input type="password" id="force-pin-new" inputmode="numeric" pattern="[0-9]*" placeholder="New PIN" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">Confirm New PIN</label>
+                    <input type="password" id="force-pin-confirm" inputmode="numeric" pattern="[0-9]*" placeholder="Confirm PIN" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div id="force-pin-error" class="hidden p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-bold text-center"></div>
+            </div>
+            <button id="force-pin-submit" onclick="submitForcePinChange()" class="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition">Set PIN & Continue</button>
+        </div>
+    </div>
+
     <!-- APPLICATION LOGIC ENGINE -->
     <script>
         let currentUser = null;
@@ -560,6 +604,7 @@
         let capitalLedger = [];
         let historicalLogs = [];
         let updateRequests = [];
+        let firestoreUnsubscribers = [];
 
         // Only commission earned from this network code counts toward profit.
         // Every other provider pays its commission directly to the owner at month end,
@@ -575,22 +620,22 @@
             window.location.reload();
         }
 
+        // Only called once real Firebase Authentication confirms who's signed in —
+        // Firestore's security rules now require a valid auth session to read
+        // anything, so attaching these earlier would just fail with permission-denied.
         function attachRealtimeListeners() {
-            db.collection("accounts").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("accounts").onSnapshot(snapshot => {
                 accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (accounts.length === 0) {
-                    db.collection("accounts").doc("superadmin").set({ name: "Super Admin", username: "superadmin", password: "123", role: "OWNER", phone: "255712897863", branch: "HQ" });
-                }
                 if (currentUser) {
                     const updatedSelf = accounts.find(a => a.id === currentUser.id);
                     if (updatedSelf) currentUser = updatedSelf;
                 }
                 renderUsersTable();
-            });
+            }));
 
-            db.collection("networks").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("networks").onSnapshot(snapshot => {
                 networks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (networks.length === 0) {
+                if (networks.length === 0 && currentUser && (currentUser.role === 'OWNER' || currentUser.role === 'ADMIN')) {
                     const defaults = [
                         { code: 'DRAWER', name: 'Physical Cash Drawer', minFloat: 100000, deposits: 0, withdrawals: 0, closingFloat: 0, commission: 0 },
                         { code: 'MPESA', name: 'M-Pesa Float', minFloat: 300000, deposits: 0, withdrawals: 0, closingFloat: 0, commission: 0 },
@@ -605,56 +650,54 @@
                 renderProviderCommissionTable();
                 populateDropdowns();
                 calculateAll();
-            });
+            }));
 
-            db.collection("expenses").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("expenses").onSnapshot(snapshot => {
                 expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderExpenses();
                 calculateAll();
-            });
+            }));
 
-            db.collection("capitalLedger").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("capitalLedger").onSnapshot(snapshot => {
                 capitalLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 calculateAll();
-            });
+            }));
 
-            db.collection("dailySummaries").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("dailySummaries").onSnapshot(snapshot => {
                 historicalLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 historicalLogs.sort((a, b) => (b.rawDate || '').localeCompare(a.rawDate || ''));
                 renderAdminClosureTable();
                 renderProviderCommissionTable();
                 calculateAll();
                 checkDateLockStatus(document.getElementById('session-date-picker').value);
-            });
+            }));
 
-            db.collection("updateRequests").onSnapshot(snapshot => {
+            firestoreUnsubscribers.push(db.collection("updateRequests").onSnapshot(snapshot => {
                 updateRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUpdateRequests();
-            });
+            }));
         }
 
-        attachRealtimeListeners();
+        function detachRealtimeListeners() {
+            firestoreUnsubscribers.forEach(unsub => unsub());
+            firestoreUnsubscribers = [];
+            accounts = [];
+            networks = [];
+            expenses = [];
+            capitalLedger = [];
+            historicalLogs = [];
+            updateRequests = [];
+        }
 
-        function handleLogin(e) {
-            e.preventDefault();
-            const u = document.getElementById('login-username').value.trim();
-            const p = document.getElementById('login-password').value.trim();
-            const foundUser = accounts.find(acc => acc.username === u && acc.password === p);
-
-            if(!foundUser) {
-                document.getElementById('login-error').classList.remove('hidden');
-                return;
-            }
-
-            currentUser = foundUser;
+        function showAppForUser(user) {
             document.getElementById('login-error').classList.add('hidden');
             document.getElementById('view-login').classList.add('hidden');
             document.getElementById('view-app').classList.remove('hidden');
 
-            document.getElementById('user-display-name').innerText = currentUser.name;
-            document.getElementById('user-display-branch').innerText = `Role: ${currentUser.role}`;
+            document.getElementById('user-display-name').innerText = user.name;
+            document.getElementById('user-display-branch').innerText = `Role: ${user.role}`;
 
-            if(currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') {
+            if (user.role === 'ADMIN' || user.role === 'OWNER') {
                 document.getElementById('admin-view-switcher').classList.remove('hidden');
                 switchAdminTab('OWNER');
             } else {
@@ -666,13 +709,70 @@
             checkDateLockStatus(document.getElementById('session-date-picker').value);
         }
 
+        // Real Firebase Authentication is now the single source of truth for who's
+        // signed in. This fires on page load (restoring a previous session), right
+        // after a successful sign-in, and on sign-out — the login/app screens and
+        // Firestore listeners are all driven from here rather than from handleLogin.
+        auth.onAuthStateChanged(async (user) => {
+            const btn = document.getElementById('btn-login');
+            if (user) {
+                try {
+                    const accSnap = await db.collection('accounts').doc(user.uid).get();
+                    if (!accSnap.exists) {
+                        const errorBox = document.getElementById('login-error');
+                        errorBox.innerText = 'Signed in, but no account profile was found for this login. Ask your Owner to set one up.';
+                        errorBox.classList.remove('hidden');
+                        await auth.signOut();
+                        return;
+                    }
+                    currentUser = { id: accSnap.id, ...accSnap.data() };
+                    attachRealtimeListeners();
+                    showAppForUser(currentUser);
+                    if (currentUser.mustChangePassword) {
+                        openForcePinChangeModal();
+                    }
+                } catch (err) {
+                    const errorBox = document.getElementById('login-error');
+                    errorBox.innerText = 'Could not load your account: ' + err.message;
+                    errorBox.classList.remove('hidden');
+                } finally {
+                    if (btn) { btn.disabled = false; btn.innerText = 'Sign In (Cloud Auth)'; }
+                }
+            } else {
+                detachRealtimeListeners();
+                currentUser = null;
+                document.getElementById('view-app').classList.add('hidden');
+                document.getElementById('view-login').classList.remove('hidden');
+                if (btn) { btn.disabled = false; btn.innerText = 'Sign In (Cloud Auth)'; }
+            }
+        });
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+            const errorBox = document.getElementById('login-error');
+            const btn = document.getElementById('btn-login');
+            errorBox.classList.add('hidden');
+            btn.disabled = true;
+            btn.innerText = 'Signing in...';
+
+            try {
+                await auth.signInWithEmailAndPassword(usernameToEmail(u), p);
+                // auth.onAuthStateChanged() above takes it from here
+            } catch (err) {
+                errorBox.innerText = 'Invalid credentials! Please verify username and PIN.';
+                errorBox.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerText = 'Sign In (Cloud Auth)';
+            }
+        }
+
         function handleLogout() {
-            currentUser = null;
             closeProfileModal();
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
-            document.getElementById('view-app').classList.add('hidden');
-            document.getElementById('view-login').classList.remove('hidden');
+            auth.signOut();
         }
 
         function switchAdminTab(targetView) {
@@ -1420,10 +1520,26 @@
             const phone = document.getElementById('new-agent-phone').value.trim().replace(/[^0-9]/g, '');
             const branch = document.getElementById('new-agent-branch').value.trim();
             const p = document.getElementById('new-agent-password').value.trim();
-            if(!name || !u || !p) return;
+            if (!name || !u || !p) return;
+            if (p.length < 6) {
+                alert('PIN must be at least 6 characters — this is a Firebase security requirement for real login accounts.');
+                return;
+            }
 
-            await db.collection("accounts").add({ name, username: u, role, phone, branch, password: p });
-            closeAgentModal();
+            try {
+                // Created on the SECONDARY auth instance so this doesn't sign the
+                // current Owner/Admin out of their own session (see secondaryAuth
+                // setup near the top of the file).
+                const cred = await secondaryAuth.createUserWithEmailAndPassword(usernameToEmail(u), p);
+                // mustChangePassword forces this person through the "set your own
+                // PIN" screen the moment they first log in — the PIN typed here is
+                // only ever meant to be a temporary, one-time value.
+                await db.collection("accounts").doc(cred.user.uid).set({ name, username: u, role, phone, branch, mustChangePassword: true });
+                await secondaryAuth.signOut();
+                closeAgentModal();
+            } catch (err) {
+                alert('Could not create account: ' + err.message);
+            }
         }
 
         function openEditUserModal(docId) {
@@ -1446,13 +1562,17 @@
             const docId = document.getElementById('edit-user-docid').value;
             if (!docId) return;
 
+            // Username is intentionally NOT editable here: it's permanently tied to
+            // this person's real sign-in email at account-creation time. Changing it
+            // in Firestore alone would desync it from what they actually log in
+            // with. Only their profile details can be updated from this screen —
+            // they'd need a new account if their username must change.
             const name = document.getElementById('edit-user-name').value.trim();
-            const username = document.getElementById('edit-user-username').value.trim();
             const role = document.getElementById('edit-user-role').value;
             const branch = document.getElementById('edit-user-branch').value.trim();
             const phone = document.getElementById('edit-user-phone').value.trim();
 
-            await db.collection("accounts").doc(docId).update({ name, username, role, branch, phone });
+            await db.collection("accounts").doc(docId).update({ name, role, branch, phone });
             closeEditUserModal();
         }
 
@@ -1465,19 +1585,87 @@
 
         function closeProfileModal() { document.getElementById('modal-profile').classList.add('hidden'); }
 
+        function openForcePinChangeModal() {
+            document.getElementById('force-pin-new').value = '';
+            document.getElementById('force-pin-confirm').value = '';
+            document.getElementById('force-pin-error').classList.add('hidden');
+            document.getElementById('modal-force-pin-change').classList.remove('hidden');
+        }
+
+        async function submitForcePinChange() {
+            const newPin = document.getElementById('force-pin-new').value.trim();
+            const confirmPin = document.getElementById('force-pin-confirm').value.trim();
+            const errorBox = document.getElementById('force-pin-error');
+            const btn = document.getElementById('force-pin-submit');
+            errorBox.classList.add('hidden');
+
+            if (newPin.length < 6) {
+                errorBox.innerText = 'PIN must be at least 6 characters.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+            if (newPin === '123456') {
+                errorBox.innerText = "That's still the default PIN — please choose a different one.";
+                errorBox.classList.remove('hidden');
+                return;
+            }
+            if (newPin !== confirmPin) {
+                errorBox.innerText = 'PINs do not match.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            try {
+                await auth.currentUser.updatePassword(newPin);
+                await db.collection('accounts').doc(currentUser.id).update({ mustChangePassword: false });
+                document.getElementById('modal-force-pin-change').classList.add('hidden');
+            } catch (err) {
+                if (err.code === 'auth/requires-recent-login') {
+                    errorBox.innerText = 'For security, please log out and log back in with your temporary PIN, then try again.';
+                } else {
+                    errorBox.innerText = 'Could not set PIN: ' + err.message;
+                }
+                errorBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Set PIN & Continue';
+            }
+        }
+
         async function saveProfileChanges() {
             const newName = document.getElementById('prof-name').value.trim();
             const newPin = document.getElementById('prof-pin').value.trim();
-            const updates = {};
-            if(newName) updates.name = newName;
-            if(newPin) updates.password = newPin;
 
-            await db.collection("accounts").doc(currentUser.id).update(updates);
-            closeProfileModal();
+            if (newPin && newPin.length < 6) {
+                alert('New PIN must be at least 6 characters — this is a Firebase security requirement.');
+                return;
+            }
+
+            try {
+                if (newName) {
+                    await db.collection("accounts").doc(currentUser.id).update({ name: newName });
+                }
+                if (newPin) {
+                    // The PIN now lives in Firebase Authentication itself, not in
+                    // Firestore — nobody, including an Owner looking at the database,
+                    // can read anyone's PIN in plain text anymore.
+                    await auth.currentUser.updatePassword(newPin);
+                }
+                document.getElementById('prof-pin').value = '';
+                closeProfileModal();
+            } catch (err) {
+                if (err.code === 'auth/requires-recent-login') {
+                    alert('For security, changing your PIN requires you to have signed in recently. Please log out and log back in, then try again.');
+                } else {
+                    alert('Could not save changes: ' + err.message);
+                }
+            }
         }
 
         async function deleteAccount(docId) {
-            if(!confirm("Are you sure you want to delete this user?")) return;
+            if(!confirm("Are you sure you want to delete this user? (Note: this removes their access immediately, but the underlying login record can only be fully erased from the Firebase Console's Authentication tab.)")) return;
             await db.collection("accounts").doc(docId).delete();
         }
 
