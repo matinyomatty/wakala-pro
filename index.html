@@ -761,7 +761,18 @@
                 await auth.signInWithEmailAndPassword(usernameToEmail(u), p);
                 // auth.onAuthStateChanged() above takes it from here
             } catch (err) {
-                errorBox.innerText = 'Invalid credentials! Please verify username and PIN.';
+                const wrongCreds = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/invalid-login-credentials'];
+                if (wrongCreds.includes(err.code)) {
+                    errorBox.innerText = 'Wrong username or PIN. (New accounts start with PIN 123456.)';
+                } else if (err.code === 'auth/operation-not-allowed') {
+                    errorBox.innerText = 'Email/Password sign-in is not enabled in Firebase (Authentication → Sign-in method).';
+                } else if (err.code === 'auth/network-request-failed') {
+                    errorBox.innerText = 'No connection to Firebase. Check your internet and try again.';
+                } else if (err.code === 'auth/too-many-requests') {
+                    errorBox.innerText = 'Too many attempts. Wait a few minutes and try again.';
+                } else {
+                    errorBox.innerText = 'Sign-in error: ' + (err.code || err.message);
+                }
                 errorBox.classList.remove('hidden');
                 btn.disabled = false;
                 btn.innerText = 'Sign In (Cloud Auth)';
