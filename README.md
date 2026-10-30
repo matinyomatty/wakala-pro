@@ -3,23 +3,23 @@
 Daily closing, float and profit records for a mobile money agent (wakala) business.
 Runs as a web app on GitHub Pages with Firebase (Auth + Firestore) as the database.
 
-## How the money check works
+## How profit is calculated
 
-Every day the agent counts each network float and the cash drawer and locks the day.
-The app then checks:
+Agents only count and enter each balance (every float, Lipa kwa Simu and the cash drawer) and list expenses.
 
 ```
-Expected closing total = last closing total
-                       + Lipa kwa Simu commission (paid by customers, goes into the balances)
-                       − expenses
-                       ± owner money in/out recorded since the last closing
-                         (capital added, owner withdrawals, commission received, approved adjustments)
+Daily profit   = today's closing total − last closing total
+                 − owner money in/out since the last closing
+                   (capital added is not profit; owner withdrawals are not a loss)
 
-Difference = counted closing total − expected
+Monthly profit = sum of daily profits (money growth over the month)
+               + provider commission received (entered with "Commission In")
 ```
 
-A difference must be explained before the day can be locked. Other providers' commission
-is not daily profit; record it with **+ Commission Received** when it is paid at month end.
+Daily profit comes from the Lipa kwa Simu fees and is already net of expenses, because
+expenses are paid out of the counted money. If the money goes down on a day, the agent must
+explain why before locking. Month-end commission can be recorded into one of the floats or as
+"Not in these balances" (paid to a bank or elsewhere); either way it is added to monthly profit.
 
 ## One-time setup after updating
 
