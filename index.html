@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -25,6 +25,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        /* Always fit the phone screen: no sideways scrolling, no automatic text enlarging,
+           and 16px text in boxes so phones don't zoom in when a box is tapped. */
+        html, body { max-width: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        input, select, textarea { font-size: 16px !important; min-width: 0; }
+        input[type=date], input[type=month] { max-width: 100%; }
+        * { -webkit-tap-highlight-color: transparent; }
         #view-login { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); min-height: 100svh; }
         header.app-header { padding-top: calc(env(safe-area-inset-top, 0px) + 0.625rem); }
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -185,7 +191,7 @@
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2">
                     <p class="text-sm font-bold text-slate-900">🤖 Ask about your business</p>
                     <div class="flex gap-2">
-                        <input type="text" id="home-ask" onkeydown="if(event.key==='Enter') askFromHome()" placeholder="e.g. profit this month" class="flex-1 h-11 px-3 border border-slate-300 rounded-xl text-sm">
+                        <input type="text" id="home-ask" style="min-width:0" onkeydown="if(event.key==='Enter') askFromHome()" placeholder="e.g. profit this month" class="flex-1 h-11 px-3 border border-slate-300 rounded-xl text-sm">
                         <button onclick="askFromHome()" class="px-4 h-11 bg-emerald-600 text-white font-bold rounded-xl text-sm">Ask</button>
                     </div>
                     <div class="flex flex-wrap gap-1.5">
