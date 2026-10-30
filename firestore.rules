@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Wakala Pro – database security rules.
+// Copy everything in this file into Firebase Console → Firestore Database → Rules → Publish.
+//
+// What it enforces:
+//  - Only people with a Wakala Pro account can read or write anything.
+//  - Only OWNER / ADMIN can: create/delete accounts or change roles, add capital,
+//    withdrawals or adjustments, add/rename/delete networks, approve requests,
+//    and change or reopen a locked day.
+//  - AGENTS can: enter balances and expenses, lock a NEW day (not overwrite an
+//    existing one), send adjustment requests, and change their own name/PIN flag.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function myAccount() { return get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data; }
+    function hasAccount() { return signedIn() && exists(/databases/$(database)/documents/accounts/$(request.auth.uid)); }
+    function isBoss() { return hasAccount() && myAccount().role in ['OWNER', 'ADMIN']; }
+    function onlyChanges(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
+
+    match /accounts/{uid} {
+      allow read: if hasAccount();
+      allow create, delete: if isBoss();
+      allow update: if isBoss()
+        || (signedIn() && request.auth.uid == uid && onlyChanges(['name', 'mustChangePassword']));
+    }
+
+    match /networks/{id} {
+      allow read: if hasAccount();
+      allow create, delete: if isBoss();
+      allow update: if isBoss()
+        || (hasAccount() && onlyChanges(['deposits', 'withdrawals', 'closingFloat', 'commission', 'openingFloat']));
+    }
+
+    match /expenses/{id} {
+      allow read, create, delete: if hasAccount();
+      allow update: if isBoss();
+    }
+
+    match /capitalLedger/{id} {
+      allow read: if hasAccount();
+      allow create, delete: if isBoss();
+      // Agents only mark entries as included in the day they lock.
+      allow update: if isBoss() || (hasAccount() && onlyChanges(['closedIn']));
+    }
+
+    match /dailySummaries/{date} {
+      allow read: if hasAccount();
+      allow create: if hasAccount();          // a new day can be locked by anyone with an account
+      allow update, delete: if isBoss();      // changing or reopening a locked day = Owner/Admin only
+    }
+
+    match /updateRequests/{id} {
+      allow read: if hasAccount();
+      allow create: if isBoss() || (hasAccount() && request.resource.data.status == 'PENDING');
+      allow update, delete: if isBoss();
+    }
+  }
+}
