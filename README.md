@@ -5,7 +5,7 @@ Runs as a web app on GitHub Pages with Firebase (Auth + Firestore) as the databa
 
 ## How profit is calculated
 
-Agents only count and enter each balance (every float, Lipa kwa Simu and the cash drawer) and list expenses.
+Agents enter, for each network, today's total deposits and withdrawals (required — this gives the transaction volume) and the counted closing balance; plus the cash drawer balance and expenses.
 
 ```
 Daily profit   = today's closing total − last closing total

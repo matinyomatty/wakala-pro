@@ -118,7 +118,7 @@
                             <label class="text-xs text-slate-500 font-semibold" data-i18n="closingDate">Closing date:</label>
                             <input type="date" id="session-date-picker" onchange="onDatePicked()" class="text-sm font-bold text-slate-800 border rounded-lg px-2 py-1.5 bg-slate-50 border-slate-300">
                         </div>
-                        <span id="session-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold border">OPEN</span>
+                        <span class="text-right"><span id="session-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold border">OPEN</span><span id="closing-date-label" class="block text-[11px] font-bold text-slate-700 mt-1"></span></span>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 mt-3">
                         <button onclick="setStep(1)" id="step-btn-1" class="h-10 rounded-xl font-bold text-[11px]" data-i18n="step1">1. Balances</button>
@@ -466,6 +466,7 @@ const MOVE_TYPES = {
 // ===================================================================
 const I18N = {
   en: {
+    depositsTotal:'Deposits today', withdrawalsTotal:'Withdrawals today', missingTx:'Enter deposits and withdrawals for: {n}', noTxConfirm:'No deposits or withdrawals were entered for any network. Lock the day anyway?', rvDeposits:'Total deposits', rvWithdrawals:'Total withdrawals', required:'required',
     rvProfit:"Today's profit (money growth)", rvFeesEarned:'Fees earned (before expenses)', rvExpPaid:'Expenses paid from the money', rvClosingTotal:'Closing total (counted)',
     optionalDetails:'Deposits & withdrawals (optional)', moneyDown:'Money went down', profitHint:'Profit = closing total − opening total, ignoring owner money in/out.',
     appSub:'Remote Financial Governance & Ledger', username:'Username', pin:'PIN', signIn:'Sign In', signingIn:'Signing in...',
@@ -475,7 +476,7 @@ const I18N = {
     lockedMsg:'🔒 This day is already closed. If something is wrong, ask the Owner to reopen it.',
     dateInvalid:'Pick a date after the last closing ({d}) and not in the future.',
     step1:'1. Balances', step2:'2. Expenses', step3:'3. Review & Lock',
-    balancesTitle:'Count each float, Lipa kwa Simu and the cash drawer, and enter the balance', opening:'Opening (last closing)', deposits:'Deposits', withdrawals:'Withdrawals',
+    balancesTitle:'For each network: count the balance and enter today\'s total deposits and withdrawals', opening:'Opening (last closing)', deposits:'Deposits', withdrawals:'Withdrawals',
     closing:'Closing balance (counted)', commission:'Commission / fees', expectedFromTx:'Expected from deposits/withdrawals', diff:'Difference',
     diffHint:'If you bought/moved float today, a difference here is normal.', changeToday:'Change since opening',
     nextExpenses:'Next: Expenses →', expensesTitle:'Expenses paid today', amountPh:'Amount (TZS)', reasonPh:'Reason (e.g. Transport)', addExpense:'Add expense',
@@ -495,6 +496,7 @@ const I18N = {
     reloginNeeded:'For security, log out and log back in, then try again.', saveFailed:'Could not save: ', expAdded:'Expense added'
   },
   sw: {
+    depositsTotal:'Kuweka leo', withdrawalsTotal:'Kutoa leo', missingTx:'Andika kuweka na kutoa kwa: {n}', noTxConfirm:'Hakuna kuweka wala kutoa kulikoandikwa kwa mtandao wowote. Funga siku hata hivyo?', rvDeposits:'Jumla ya kuweka', rvWithdrawals:'Jumla ya kutoa', required:'lazima',
     rvProfit:'Faida ya leo (ongezeko la pesa)', rvFeesEarned:'Ada zilizopatikana (kabla ya matumizi)', rvExpPaid:'Matumizi yaliyolipwa kutoka kwenye pesa', rvClosingTotal:'Jumla ya kufunga (umehesabu)',
     optionalDetails:'Kuweka na kutoa (si lazima)', moneyDown:'Pesa imepungua', profitHint:'Faida = jumla ya kufunga − jumla ya kufungua, bila kuhesabu pesa za mmiliki.',
     appSub:'Usimamizi wa fedha na daftari', username:'Jina la mtumiaji', pin:'Namba ya siri (PIN)', signIn:'Ingia', signingIn:'Inaingia...',
@@ -504,7 +506,7 @@ const I18N = {
     lockedMsg:'🔒 Siku hii imeshafungwa. Kama kuna kosa, mwombe Mmiliki aifungue upya.',
     dateInvalid:'Chagua tarehe baada ya kufunga kwa mwisho ({d}) na isiyo ya baadaye.',
     step1:'1. Salio', step2:'2. Matumizi', step3:'3. Hakiki & Funga',
-    balancesTitle:'Hesabu kila float, Lipa kwa Simu na droo ya pesa, kisha andika salio', opening:'Salio la kufungua (jana)', deposits:'Kuweka', withdrawals:'Kutoa',
+    balancesTitle:'Kwa kila mtandao: hesabu salio na andika jumla ya kuweka na kutoa leo', opening:'Salio la kufungua (jana)', deposits:'Kuweka', withdrawals:'Kutoa',
     closing:'Salio la kufunga (umehesabu)', commission:'Kamisheni / ada', expectedFromTx:'Inayotarajiwa kwa miamala', diff:'Tofauti',
     diffHint:'Kama ulinunua au kuhamisha float leo, tofauti hii ni kawaida.', changeToday:'Mabadiliko tangu kufungua',
     nextExpenses:'Endelea: Matumizi →', expensesTitle:'Matumizi ya leo', amountPh:'Kiasi (TZS)', reasonPh:'Sababu (mf. Usafiri)', addExpense:'Ongeza',
@@ -598,6 +600,11 @@ function lksNet() { return networks.find(n => n.code === PROFIT_COMMISSION_CODE)
 function moveType(c) { return c.type || 'CAPITAL'; } // old entries had no type = capital
 function openMoves() { return capitalLedger.filter(c => c.type && !c.closedIn); }
 function openMovesFor(code) { return sum(openMoves().filter(c => c.target === code), c => c.amount); }
+function hasTx(n) { return n.code !== DRAWER_CODE; } // the cash drawer has no deposits/withdrawals of its own
+function isBlank(v) { return v === null || v === undefined || v === ''; }
+function missingTx() { return sortedNetworks().filter(n => hasTx(n) && (isBlank(n.deposits) || isBlank(n.withdrawals))); }
+function depositsOf(log) { if (log.totalDeposits !== undefined) return num(log.totalDeposits); if (log.networks) return sum(Object.values(log.networks), x => x.deposits); return null; }
+function withdrawalsOf(log) { if (log.totalWithdrawals !== undefined) return num(log.totalWithdrawals); if (log.networks) return sum(Object.values(log.networks), x => x.withdrawals); return null; }
 function inBalances(c) { return c.target !== OUTSIDE; }
 // Daily profit = growth of the total money, ignoring owner money in/out.
 function dayProfitOf(log) {
@@ -623,13 +630,15 @@ function dayRec() {
     const exp = sum(expenses, e => e.amount);
     const actual = sum(networks, n => n.closingFloat);
     const moves = sum(openMoves().filter(inBalances), c => c.amount);
-    const volume = sum(networks, n => num(n.deposits) + num(n.withdrawals));
+    const txNets = networks.filter(hasTx);
+    const deposits = sum(txNets, n => n.deposits), withdrawals = sum(txNets, n => n.withdrawals);
+    const volume = deposits + withdrawals;
     let opening = null;
     const lc = lastClosure();
     if (isNewFormat(lc)) opening = num(lc.closingTotal);
     else if (networks.length && networks.every(n => typeof n.openingFloat === 'number')) opening = sum(networks, n => n.openingFloat);
     const profit = opening === null ? null : actual - opening - moves;
-    return { exp, actual, moves, opening, profit, fees: profit === null ? null : profit + exp, volume };
+    return { exp, actual, moves, opening, profit, fees: profit === null ? null : profit + exp, volume, deposits, withdrawals };
 }
 function overallRec() {
     return { actual: sum(networks, n => n.closingFloat), capital: sum(capitalLedger.filter(c => moveType(c) === 'CAPITAL'), c => c.amount) };
@@ -650,6 +659,11 @@ function monthStats(ym) {
         closing: chain.length ? num(chain[chain.length - 1].closingTotal) : null,
         chainMoves: sum(chain, l => l.movementsTotal),
         exp: sum(logs, l => l.expenses), volume: sum(logs, l => l.volume),
+        deposits: sum(logs, l => depositsOf(l)), withdrawalsTx: sum(logs, l => withdrawalsOf(l)),
+        splitKnown: logs.every(l => depositsOf(l) !== null),
+        avgVolume: logs.length ? sum(logs, l => l.volume) / logs.length : 0,
+        perNetwork: (() => { const o = {}; logs.forEach(l => Object.keys(l.networks || {}).forEach(code => { const x = l.networks[code]; if (code === DRAWER_CODE) return;
+            o[code] = o[code] || { name: x.name || code, dep: 0, wd: 0 }; o[code].dep += num(x.deposits); o[code].wd += num(x.withdrawals); })); return o; })(),
         capital: byType('CAPITAL'), withdrawals: -byType('WITHDRAWAL'), adjustments: byType('ADJUSTMENT'),
         lossDays: chain.filter(l => Math.round(dayProfitOf(l)) < 0)
     };
@@ -693,6 +707,18 @@ function attachRealtimeListeners() {
     });
     on('networks', snap => {
         networks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // One-time cleanup: older versions stored 0 for "not entered yet". Clear those so
+        // agents must type today's deposits/withdrawals (typing 0 still counts as entered).
+        if (!snap.metadata.fromCache) {
+            let done = false; try { done = localStorage.getItem('wp_tx_blank_v1') === '1'; } catch (e) {}
+            if (!done) {
+                networks.filter(n => hasTx(n) && n.deposits === 0 && n.withdrawals === 0).forEach(n => {
+                    n.deposits = null; n.withdrawals = null;
+                    write(db.collection('networks').doc(n.id).update({ deposits: null, withdrawals: null }));
+                });
+                try { localStorage.setItem('wp_tx_blank_v1', '1'); } catch (e) {}
+            }
+        }
         if (networks.length === 0 && isBoss(currentUser) && !snap.metadata.fromCache) {
             const defaults = [
                 { code: 'DRAWER', name: 'Physical Cash Drawer', minFloat: 100000 },
@@ -792,8 +818,9 @@ function showAppForUser(user) {
     $('view-login').classList.add('hidden');
     $('view-app').classList.remove('hidden');
     $('user-initial').innerText = ((user.name || '?').trim()[0] || '?').toUpperCase();
-    $('session-date-picker').value = localDate();
-    setMonth(localDate().slice(0, 7), true);
+    lastToday = localDate();
+    $('session-date-picker').value = defaultClosingDate();
+    setMonth(lastToday.slice(0, 7), true);
     $('bottom-nav').classList.toggle('hidden', !isBoss(user));
     setStep(1);
     showTab(isBoss(user) ? 'home' : 'close');
@@ -815,6 +842,30 @@ function showTab(tab) {
 }
 
 let selectedMonthVal = '';
+let lastToday = '';
+// Default closing date: today — but just after midnight (before 6am), if yesterday
+// is still not closed, default to yesterday so a late closing lands on the right day.
+function defaultClosingDate() {
+    const today = localDate();
+    const y = shiftDate(today, -1);
+    const lc = lastClosure();
+    if (new Date().getHours() < 6 && (!lc || lc.rawDate < y)) return y;
+    return today;
+}
+// Keep "today" correct when the app stays open past midnight.
+function checkDayRollover() {
+    if (!currentUser) return;
+    const today = localDate();
+    if (today === lastToday) return;
+    const picker = $('session-date-picker');
+    if (!picker.value || picker.value === lastToday || agentSuccessDate) { agentSuccessDate = null; picker.value = defaultClosingDate(); }
+    if (selectedMonth() === lastToday.slice(0, 7)) setMonth(today.slice(0, 7), true);
+    lastToday = today;
+    renderAll();
+}
+setInterval(checkDayRollover, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
+window.addEventListener('focus', checkDayRollover);
 function selectedMonth() { return selectedMonthVal || localDate().slice(0, 7); }
 function setMonth(v, silent) {
     selectedMonthVal = v || localDate().slice(0, 7);
@@ -861,6 +912,7 @@ function refreshAgentState() {
     badge.innerText = locked ? t('sessionLocked') : t('sessionOpen');
     badge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold border ' + (locked ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-amber-100 text-amber-800 border-amber-200');
 
+    $('closing-date-label').innerText = d ? niceDate(d) : '';
     const banner = $('lock-warning-banner');
     const showSuccess = agentSuccessDate && agentSuccessDate === d;
     if (showSuccess) {
@@ -879,6 +931,7 @@ function refreshAgentState() {
 }
 
 let pendingInputRender = false;
+let showMissing = false;
 const openDetails = new Set();
 function toggleDetails(code, open) { if (open) openDetails.add(code); else openDetails.delete(code); }
 function renderNetworkInputs() {
@@ -900,26 +953,24 @@ function renderNetworkInputs() {
                 check = `<div class="text-[10px] mt-1 text-slate-500">${esc(t('changeToday'))}: <b>${fmtSigned(cl - opening - moves)}</b></div>`;
             }
         }
-        const field = (key, label, val, big) => `
-            <div><label class="${big ? 'text-[11px] text-slate-700' : 'text-[10px] text-slate-500'} font-bold">${esc(label)}</label>
-            <input type="number" inputmode="numeric" value="${num(val)}" onfocus="this.select()" onchange="updateNetworkVal('${esc(n.id)}', '${key}', this.value)"
-                class="w-full ${big ? 'h-12 text-base border-emerald-300 bg-emerald-50/40' : 'h-10 text-sm border-slate-300 bg-white'} px-2.5 border rounded-xl font-bold text-slate-800 mt-0.5"></div>`;
-        const detailsOpen = openDetails.has(n.code) || dep || wd;
+        const field = (key, label, val, big, req) => {
+            const missing = req && showMissing && isBlank(val);
+            return `<div><label class="${big ? 'text-[11px] text-slate-700' : 'text-[10px] text-slate-600'} font-bold">${esc(label)}${req ? ` <span class="${missing ? 'text-rose-600' : 'text-rose-400'}">*</span>` : ''}</label>
+            <input type="number" inputmode="numeric" value="${isBlank(val) ? '' : num(val)}" placeholder="0" onfocus="this.select()" onchange="updateNetworkVal('${esc(n.id)}', '${key}', this.value)"
+                class="w-full ${big ? 'h-12 text-base border-emerald-300 bg-emerald-50/40' : 'h-11 text-sm bg-white ' + (missing ? 'border-rose-400 ring-2 ring-rose-200' : 'border-slate-300')} px-2.5 border rounded-xl font-bold text-slate-800 mt-0.5"></div>`;
+        };
         return `
         <div class="bg-white p-3.5 border border-slate-200 rounded-2xl shadow-sm space-y-2.5">
             <div class="flex justify-between items-baseline gap-2">
                 <span class="font-bold text-sm text-slate-900">${esc(n.name)}</span>
                 <span class="text-[10px] text-slate-500 text-right">${esc(t('opening'))}<br><b class="text-slate-700">${opening === null ? '—' : fmt(opening + moves)}</b></span>
             </div>
+            ${hasTx(n) ? `<div class="grid grid-cols-2 gap-2">
+                ${field('deposits', t('depositsTotal'), n.deposits, false, true)}
+                ${field('withdrawals', t('withdrawalsTotal'), n.withdrawals, false, true)}
+            </div>` : ''}
             ${field('closingFloat', t('closing'), n.closingFloat, true)}
             ${check}
-            <details ${detailsOpen ? 'open' : ''} ontoggle="toggleDetails('${esc(n.code)}', this.open)" class="text-xs">
-                <summary class="text-slate-500 font-semibold cursor-pointer select-none">${esc(t('optionalDetails'))}</summary>
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    ${field('deposits', t('deposits'), n.deposits)}
-                    ${field('withdrawals', t('withdrawals'), n.withdrawals)}
-                </div>
-            </details>
         </div>`;
     }).join('');
 }
@@ -928,13 +979,12 @@ document.addEventListener('focusout', () => setTimeout(() => {
 }, 0));
 
 function updateNetworkVal(id, field, value) {
-    const v = num(value);
+    const v = String(value).trim() === '' ? null : num(value);
     const n = networks.find(x => x.id === id);
     if (n) n[field] = v; // update immediately so totals refresh even offline
     write(db.collection('networks').doc(id).update({ [field]: v }));
     renderReview();
 }
-
 function renderExpenses() {
     const box = $('expense-list');
     if (!expenses.length) { box.innerHTML = `<p class="py-3 text-center text-sm text-slate-400">${esc(t('noExpenses'))}</p>`; return; }
@@ -958,12 +1008,14 @@ function deleteExpense(id) { write(db.collection('expenses').doc(id).delete()); 
 
 function reviewRows(r) {
     const row = (label, val, cls) => `<div class="flex justify-between gap-2 ${cls || ''}"><span>${esc(label)}</span><span class="font-bold text-right">${val}</span></div>`;
+    const vol = row(t('rvDeposits'), fmt(r.deposits), 'text-slate-600') + row(t('rvWithdrawals'), fmt(r.withdrawals), 'text-slate-600')
+        + row(t('rvVolume'), fmt(r.volume), 'text-blue-700') + '<div class="border-t border-slate-200 my-1"></div>';
     if (r.opening === null) {
-        return row(t('rvClosingTotal'), fmt(r.actual)) + row(t('rvExpPaid'), fmt(r.exp), 'text-slate-500')
+        return vol + row(t('rvClosingTotal'), fmt(r.actual)) + row(t('rvExpPaid'), fmt(r.exp), 'text-slate-500')
             + `<p class="text-xs text-slate-400">${esc(t('noOpening'))}</p>`;
     }
     const down = Math.round(r.profit) < 0;
-    return row(t('rvOpening'), fmt(r.opening))
+    return vol + row(t('rvOpening'), fmt(r.opening))
         + (Math.round(r.moves) ? row(t('rvMoves'), fmtSigned(r.moves)) : '')
         + row(t('rvClosingTotal'), fmt(r.actual))
         + '<div class="border-t border-slate-200 my-1"></div>'
@@ -995,7 +1047,15 @@ function validateClosingDate() {
 function openConfirmLock() {
     const err = validateClosingDate();
     if (err) { toast(err, 'error'); return; }
+    const miss = missingTx();
+    if (miss.length) {
+        showMissing = true;
+        setStep(1); renderNetworkInputs();
+        toast(t('missingTx', { n: miss.map(n => n.name).join(', ') }), 'error');
+        return;
+    }
     const r = dayRec();
+    if (r.volume === 0 && !confirm(t('noTxConfirm'))) return;
     $('confirm-summary').innerHTML = `<div class="font-bold">${esc($('session-date-picker').value)}</div>` + reviewRows(r);
     const needNote = r.profit !== null && Math.round(r.profit) < 0;
     $('confirm-note-wrap').classList.toggle('hidden', !needNote);
@@ -1029,6 +1089,8 @@ async function doLock() {
         version: 3,
         rawDate: d,
         volume: r.volume,
+        totalDeposits: r.deposits,
+        totalWithdrawals: r.withdrawals,
         commission: 0,
         lipaKwaSimuCommission: 0,
         dayProfit: r.profit,
@@ -1047,7 +1109,7 @@ async function doLock() {
         submittedById: currentUser.id,
         submittedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    networks.forEach(n => batch.update(db.collection('networks').doc(n.id), { deposits: 0, withdrawals: 0, commission: 0, openingFloat: num(n.closingFloat) }));
+    networks.forEach(n => batch.update(db.collection('networks').doc(n.id), { deposits: null, withdrawals: null, commission: 0, openingFloat: num(n.closingFloat) }));
     expenses.forEach(e => batch.delete(db.collection('expenses').doc(e.id)));
     open.forEach(m => batch.update(db.collection('capitalLedger').doc(m.id), { closedIn: d }));
 
@@ -1066,13 +1128,14 @@ async function doLock() {
         return;
     }
     isLocking = false; btn.disabled = false; btn.innerText = t('confirmLock');
+    showMissing = false;
     closeModal('modal-confirm-lock');
     agentSuccessDate = d; agentSuccessOffline = offline;
     renderAll();
 
     let msg = `📊 *WAKALA PRO – DAILY CLOSING*\n📅 ${d}\n👤 ${currentUser.name || ''}\n\n`;
     if (r.profit !== null) msg += `• Profit today: *${fmtSigned(r.profit)}*${Math.round(r.profit) < 0 ? ` ⚠️ ${note}` : ''}\n`;
-    msg += `• Expenses paid: ${fmt(r.exp)}\n• Closing total: ${fmt(r.actual)}\n`;
+    msg += `• Volume: ${fmt(r.volume)} (deposits ${fmt(r.deposits)} · withdrawals ${fmt(r.withdrawals)})\n• Expenses paid: ${fmt(r.exp)}\n• Closing total: ${fmt(r.actual)}\n`;
     msg += `\n*Balances*\n` + sortedNetworks().map(n => `• ${n.name}: ${fmt(snapshot[n.code].closing)}`).join('\n');
     notifyBosses(msg, currentUser);
 }
@@ -1137,7 +1200,9 @@ function renderHome(m, o, pending) {
         <p class="text-3xl font-black tracking-tight">${fmt(o.actual)}</p>
         <div class="grid grid-cols-2 gap-3 mt-3 text-xs">
             <div><p class="text-slate-400">Profit today${lockedToday ? '' : ' (so far)'}</p><p class="font-black text-sm ${Math.round(num(todayProfit)) < 0 ? 'text-rose-400' : 'text-emerald-400'}">${todayProfit === null ? '—' : fmtSigned(todayProfit)}</p></div>
+            <div><p class="text-slate-400">Volume today${lockedToday ? '' : ' (so far)'}</p><p class="font-black text-sm text-sky-300">${fmt(lockedToday ? lockedToday.volume : live.volume)}</p></div>
             <div><p class="text-slate-400">Profit this month</p><p class="font-black text-sm text-emerald-400">${fmt(monthStats(today.slice(0, 7)).totalProfit)}</p></div>
+            <div><p class="text-slate-400">Volume this month</p><p class="font-black text-sm text-sky-300">${fmt(monthStats(today.slice(0, 7)).volume)}</p></div>
         </div>
         ${lockedToday ? `<p class="text-[11px] text-slate-400 mt-3">Closed by ${esc(lockedToday.submittedBy || '—')}</p>`
             : `<button onclick="showTab('close')" class="w-full h-11 mt-3 bg-emerald-500 text-slate-900 font-black rounded-xl text-sm">Close today →</button>`}`;
@@ -1168,11 +1233,13 @@ function renderHome(m, o, pending) {
         <div class="grid grid-cols-2 gap-2 mt-2">
             ${tile('Daily profit', fmt(m.dailyProfit + m.legacyProfit), (m.dailyProfit + m.legacyProfit) < 0 ? 'text-rose-600' : 'text-emerald-600')}
             ${tile('Commission in', fmt(m.commissionIn), 'text-teal-700')}
-            ${tile('Withdrawals', fmt(m.withdrawals), 'text-amber-600')}
-            ${tile('Expenses', fmt(m.exp), 'text-rose-600')}
+            ${tile('Transaction volume', fmt(m.volume), 'text-blue-700')}
+            ${tile('Avg volume / day', fmt(m.avgVolume), 'text-blue-700')}
         </div>
         <div class="divide-y divide-slate-100 mt-1">
             ${line('Days closed', m.logs.length)}
+            ${line('Owner withdrawals', fmt(m.withdrawals))}
+            ${line('Expenses', fmt(m.exp))}
             ${m.lossDays.length ? line('Days money went down', `<span class="text-rose-600">${m.lossDays.length}</span>`) : ''}
         </div>
         <button onclick="showTab('history')" class="w-full mt-1 text-xs font-bold text-blue-600 text-left">See how this is calculated ›</button>`;
@@ -1196,7 +1263,14 @@ function renderHistory(m) {
     if (m.legacyDays) calc += L(`Older entries (${m.legacyDays} day${m.legacyDays > 1 ? 's' : ''}, fees typed in)`, fmt(m.legacyProfit), 'text-slate-600');
     calc += L('+ Commission received', fmt(m.commissionIn), 'text-slate-600')
         + `<div class="flex justify-between gap-2 py-2 mt-1 border-t-2 border-slate-200"><span class="font-black">Total profit</span><span class="font-black text-emerald-700 text-lg">${fmt(m.totalProfit)}</span></div>`;
-    $('history-summary').innerHTML = `<div>${calc}</div>` + (m.chain.length || m.legacyDays ? '' : '<p class="text-sm text-slate-400">No closings in this month yet.</p>');
+    const nets = Object.values(m.perNetwork).sort((a, b) => (b.dep + b.wd) - (a.dep + a.wd));
+    const volBlock = `<div class="mt-3 pt-3 border-t border-slate-100">
+        <div class="flex justify-between items-baseline"><span class="text-sm font-bold">Transaction volume</span><span class="text-lg font-black text-blue-700">${fmt(m.volume)}</span></div>
+        ${m.splitKnown ? `<div class="flex justify-between text-xs text-slate-500 mt-0.5"><span>Deposits ${fmt(m.deposits)}</span><span>Withdrawals ${fmt(m.withdrawalsTx)}</span></div>` : ''}
+        <div class="text-xs text-slate-500 mt-0.5">Average ${fmt(m.avgVolume)} per day over ${m.logs.length} day(s)</div>
+        ${nets.length ? `<div class="mt-2 divide-y divide-slate-100">${nets.map(x => `<div class="flex justify-between py-1.5 text-xs"><span class="font-semibold">${esc(x.name)}</span><span class="text-right"><b>${fmt(x.dep + x.wd)}</b><br><span class="text-slate-500">dep ${fmt(x.dep)} · wd ${fmt(x.wd)}</span></span></div>`).join('')}</div>` : ''}
+    </div>`;
+    $('history-summary').innerHTML = `<div>${calc}</div>` + volBlock + (m.chain.length || m.legacyDays ? '' : '<p class="text-sm text-slate-400">No closings in this month yet.</p>');
 
     $('closings-list').innerHTML = !m.logs.length ? '' : m.logs.map(s => {
         const p = dayProfitOf(s);
@@ -1207,7 +1281,7 @@ function renderHistory(m) {
                 <span class="text-sm">${isNewFormat(s) ? profitBadge(p) : `<span class="text-slate-500 text-xs">old: ${fmtSigned(legacyProfitOf(s))}*</span>`}</span>
             </div>
             <div class="flex items-center justify-between gap-2 mt-1.5 text-xs text-slate-500">
-                <span>Closing total <b class="text-slate-800">${isNewFormat(s) ? fmt(s.closingTotal) : fmt(s.moneyPosition) + '*'}</b></span>
+                <span>Volume <b class="text-blue-700">${fmt(s.volume)}</b> · Closing <b class="text-slate-800">${isNewFormat(s) ? fmt(s.closingTotal) : fmt(s.moneyPosition) + '*'}</b></span>
                 <span>${esc(s.submittedBy || '')} ›</span>
             </div>
             ${s.varianceNote ? `<p class="text-xs text-rose-700 mt-1">${esc(s.varianceNote)}</p>` : ''}
@@ -1278,13 +1352,15 @@ function showClosure(id) {
             ${Math.round(num(s.movementsTotal)) ? L('Owner money in/out', fmtSigned(s.movementsTotal)) : ''}
             ${L('Closing total (counted)', fmt(s.closingTotal))}
             <div class="flex justify-between border-t pt-1.5 mt-1"><span class="font-bold">Profit (money growth)</span>${profitBadge(p, true)}</div>
+            ${L('Transaction volume', fmt(s.volume), 'text-blue-700')}
+            ${depositsOf(s) !== null ? L('Deposits · Withdrawals', fmt(depositsOf(s)) + ' · ' + fmt(withdrawalsOf(s)), 'text-xs text-slate-500') : ''}
             ${p !== null ? L('Fees earned (before expenses)', fmt(p + num(s.expenses)), 'text-xs text-slate-500') : ''}
             ${L('Expenses paid', fmt(s.expenses), 'text-xs text-slate-500')}
             ${s.varianceNote ? `<p class="text-xs text-rose-700 pt-1">Explanation: ${esc(s.varianceNote)}</p>` : ''}
         </div>`;
         html += `<p class="font-bold text-sm mt-3">Balances counted</p><div class="divide-y divide-slate-100">` +
             Object.keys(s.networks || {}).map(code => { const n = s.networks[code]; const ch = n.opening === null || n.opening === undefined ? null : num(n.closing) - num(n.opening);
-                return `<div class="flex justify-between py-2 text-sm"><span>${esc(n.name || code)}</span><span class="text-right"><b>${fmt(n.closing)}</b>${ch !== null ? `<br><span class="text-[11px] ${Math.round(ch) < 0 ? 'text-rose-600' : 'text-slate-500'}">${fmtSigned(ch)}</span>` : ''}</span></div>`; }).join('') + `</div>`;
+                return `<div class="flex justify-between py-2 text-sm"><span>${esc(n.name || code)}${code !== DRAWER_CODE ? `<br><span class="text-[11px] text-slate-500">dep ${fmt(n.deposits)} · wd ${fmt(n.withdrawals)}</span>` : ''}</span><span class="text-right"><b>${fmt(n.closing)}</b>${ch !== null ? `<br><span class="text-[11px] ${Math.round(ch) < 0 ? 'text-rose-600' : 'text-slate-500'}">${fmtSigned(ch)}</span>` : ''}</span></div>`; }).join('') + `</div>`;
         if ((s.expenseItems || []).length) html += `<p class="font-bold text-sm mt-3">Expenses</p>` + s.expenseItems.map(e => `<div class="flex justify-between text-sm py-1"><span>${esc(e.note)}</span><span>${fmt(e.amount)}</span></div>`).join('');
     } else {
         html += `<p class="text-sm">Older entry. Fees typed in: ${fmt(s.lipaKwaSimuCommission)} · Expenses ${fmt(s.expenses)} · Money position (old formula) ${fmt(s.moneyPosition)}</p>`;
@@ -1454,7 +1530,7 @@ function saveNetwork() {
         const code = $('net-code').value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
         if (!code) { toast('Enter a code (letters/numbers only).', 'warn'); return; }
         if (networks.some(n => n.code === code)) { toast('That code already exists.', 'warn'); return; }
-        write(db.collection('networks').doc(code).set({ code, name, minFloat: min, deposits: 0, withdrawals: 0, closingFloat: 0, commission: 0, openingFloat: 0 }));
+        write(db.collection('networks').doc(code).set({ code, name, minFloat: min, deposits: null, withdrawals: null, closingFloat: 0, commission: 0, openingFloat: 0 }));
     }
     closeModal('modal-network');
 }
@@ -1574,7 +1650,8 @@ function monthRows(m) {
             opening: isNewFormat(s) && s.openingTotal !== null && s.openingTotal !== undefined ? num(s.openingTotal) : '',
             moves: isNewFormat(s) ? num(s.movementsTotal) : '',
             closing: isNewFormat(s) ? num(s.closingTotal) : num(s.moneyPosition),
-            profit: p === null ? '' : p, expenses: num(s.expenses), note: s.varianceNote || ''
+            profit: p === null ? '' : p, expenses: num(s.expenses), note: s.varianceNote || '',
+            deposits: depositsOf(s) === null ? '' : depositsOf(s), withdrawals: withdrawalsOf(s) === null ? '' : withdrawalsOf(s), volume: num(s.volume)
         };
     });
 }
@@ -1583,7 +1660,7 @@ function generateMonthlyPDF() {
     const m = monthStats(ym);
     const rows = monthRows(m);
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
     const label = new Date(ym + '-01T12:00:00').toLocaleString('en-GB', { month: 'long', year: 'numeric' });
     const n = v => (v === '' || v === null) ? '—' : Math.round(v).toLocaleString();
     doc.setFontSize(16); doc.text(`Wakala Pro – Profit Report: ${label}`, 14, 16);
@@ -1591,14 +1668,24 @@ function generateMonthlyPDF() {
     const summary = [];
     if (m.chain.length) summary.push(['Opening total (start)', n(m.opening)], ['Closing total (latest)', n(m.closing)], ['Owner money in/out (removed)', n(-m.chainMoves)], ['Daily profit (money growth)', n(m.dailyProfit)]);
     if (m.legacyDays) summary.push(['Older entries (fees typed in)', n(m.legacyProfit)]);
-    summary.push(['Commission received', n(m.commissionIn)], ['TOTAL PROFIT', n(m.totalProfit)], ['', ''], ['Expenses (already inside daily profit)', n(m.exp)], ['Owner withdrawals', n(m.withdrawals)], ['Capital added', n(m.capital)], ['Days money went down', String(m.lossDays.length)]);
+    summary.push(['Commission received', n(m.commissionIn)], ['TOTAL PROFIT', n(m.totalProfit)], ['', ''],
+        ['Transaction volume', n(m.volume)], ['  Deposits', m.splitKnown ? n(m.deposits) : '—'], ['  Withdrawals', m.splitKnown ? n(m.withdrawalsTx) : '—'], ['Average volume per day', n(m.avgVolume)], ['', ''], ['Expenses (already inside daily profit)', n(m.exp)], ['Owner withdrawals', n(m.withdrawals)], ['Capital added', n(m.capital)], ['Days money went down', String(m.lossDays.length)]);
     doc.autoTable({ startY: 27, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [15, 23, 42] }, head: [['Summary', 'TZS']], body: summary, columnStyles: { 1: { halign: 'right' } }, tableWidth: 120 });
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 6, theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [16, 185, 129] },
-        head: [['Date', 'By', 'Opening', 'Owner in/out', 'Closing', 'Profit', 'Expenses', 'Note']],
-        body: rows.map(r => [r.date, r.by, n(r.opening), n(r.moves), n(r.closing) + (r.oldFormat ? '*' : ''), n(r.profit) + (r.oldFormat ? '*' : ''), n(r.expenses), r.note]),
-        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
+        head: [['Date', 'Deposits', 'Withdrawals', 'Volume', 'Opening', 'Owner in/out', 'Closing', 'Profit', 'Expenses', 'Note']],
+        body: rows.map(r => [r.date, n(r.deposits), n(r.withdrawals), n(r.volume), n(r.opening), n(r.moves), n(r.closing) + (r.oldFormat ? '*' : ''), n(r.profit) + (r.oldFormat ? '*' : ''), n(r.expenses), r.note]),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' } }
     });
+    const netRows = Object.values(m.perNetwork).sort((a, b) => (b.dep + b.wd) - (a.dep + a.wd));
+    if (netRows.length) {
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 6, theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [37, 99, 235] },
+            head: [['Network', 'Deposits', 'Withdrawals', 'Volume']],
+            body: netRows.map(x => [x.name, n(x.dep), n(x.wd), n(x.dep + x.wd)]),
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }, tableWidth: 140
+        });
+    }
     if (m.moves.length) {
         doc.autoTable({
             startY: doc.lastAutoTable.finalY + 6, theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 116, 139] },
@@ -1614,12 +1701,16 @@ function exportCSV() {
     const ym = selectedMonth();
     const m = monthStats(ym);
     const q = v => `"${String(v).replace(/"/g, '""')}"`;
-    const lines = [['Date', 'Submitted by', 'Opening total', 'Owner in/out', 'Closing total', 'Profit', 'Expenses', 'Old format', 'Note'].map(q).join(',')];
-    monthRows(m).forEach(r => lines.push([r.date, r.by, r.opening, r.moves, r.closing, r.profit, r.expenses, r.oldFormat ? 'yes' : '', r.note].map(q).join(',')));
+    const lines = [['Date', 'Submitted by', 'Deposits', 'Withdrawals', 'Volume', 'Opening total', 'Owner in/out', 'Closing total', 'Profit', 'Expenses', 'Old format', 'Note'].map(q).join(',')];
+    monthRows(m).forEach(r => lines.push([r.date, r.by, r.deposits, r.withdrawals, r.volume, r.opening, r.moves, r.closing, r.profit, r.expenses, r.oldFormat ? 'yes' : '', r.note].map(q).join(',')));
     lines.push('');
     lines.push([q('Daily profit'), q(m.dailyProfit + m.legacyProfit)].join(','));
     lines.push([q('Commission received'), q(m.commissionIn)].join(','));
     lines.push([q('Total profit'), q(m.totalProfit)].join(','));
+    lines.push([q('Transaction volume'), q(m.volume)].join(','));
+    lines.push('');
+    lines.push(['Network', 'Deposits', 'Withdrawals', 'Volume'].map(q).join(','));
+    Object.values(m.perNetwork).forEach(x => lines.push([x.name, x.dep, x.wd, x.dep + x.wd].map(q).join(',')));
     lines.push('');
     lines.push(['Date', 'Type', 'Where', 'Amount', 'Note', 'By'].map(q).join(','));
     m.moves.forEach(c => lines.push([dateOfEntry(c), (MOVE_TYPES[moveType(c)] || {}).label || moveType(c), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), num(c.amount), c.note || '', c.by || ''].map(q).join(',')));
@@ -1717,6 +1808,10 @@ function buildAiReply(raw) {
         const bosses = accounts.filter(isBoss);
         const on = bosses.filter(a => a.phone && a.callmebotKey);
         return `📱 **WhatsApp alerts**\n• On: ${on.map(a => a.name).join(', ') || 'nobody'}\n• Off: ${bosses.filter(a => !on.includes(a)).map(a => a.name).join(', ') || 'nobody'}`;
+    }
+    if (/volume|turnover|miamala|transaction/.test(q)) {
+        const vol = sum(logs, l => l.volume), dep = sum(logs, l => depositsOf(l)), wd = sum(logs, l => withdrawalsOf(l));
+        return `📈 **Transaction volume — ${range.label}: ${fmt(vol)}**\n• Deposits: ${fmt(dep)}\n• Withdrawals: ${fmt(wd)}\n• ${logs.length} day(s), average ${fmt(logs.length ? vol / logs.length : 0)}/day`;
     }
     if (/capital|mtaji/.test(q)) return `🏦 **Capital invested (all time):** ${fmt(overallRec().capital)}`;
     if (/advice|recommend|should i|suggest|ushauri/.test(q)) {
