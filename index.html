@@ -90,187 +90,181 @@
 
     <!-- APP -->
     <div id="view-app" class="hidden min-h-screen w-full flex flex-col">
-        <header class="app-header bg-slate-900 text-white px-3 pb-2.5 sticky top-0 shadow-md w-full z-40">
-            <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <div class="bg-emerald-500 text-slate-900 font-black p-1.5 rounded-xl text-base">W</div>
+        <header class="app-header bg-slate-900 text-white px-4 pb-3 sticky top-0 shadow-md w-full z-40">
+            <div class="max-w-3xl mx-auto flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 bg-emerald-500 text-slate-900 font-black rounded-xl flex items-center justify-center">W</div>
                     <div>
-                        <h1 class="text-sm font-bold tracking-tight leading-none">WAKALA<span class="text-emerald-400">PRO</span></h1>
-                        <p id="net-status" class="text-[9px] text-emerald-400 flex items-center gap-1 font-semibold mt-0.5">
+                        <h1 id="page-title" class="text-base font-bold leading-tight">Wakala Pro</h1>
+                        <p id="net-status" class="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
                             <span id="net-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span id="net-text">Online</span>
                         </p>
                     </div>
                 </div>
-                <div id="admin-view-switcher" class="hidden flex bg-slate-800 p-0.5 rounded-xl border border-slate-700 gap-0.5">
-                    <button onclick="switchAdminTab('OWNER')" id="tab-btn-owner" class="px-2.5 py-1 text-[11px] font-bold rounded-lg">Owner</button>
-                    <button onclick="switchAdminTab('AGENT')" id="tab-btn-agent" class="px-2.5 py-1 text-[11px] font-bold rounded-lg">Agent</button>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <button onclick="toggleLang()" class="h-9 px-2 bg-slate-800 border border-slate-700 text-slate-200 rounded-lg text-[10px] font-bold"><span class="lang-short">SW</span></button>
-                    <button onclick="openProfileModal()" class="h-9 px-2.5 bg-slate-800 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-bold flex items-center gap-1">👤 <span class="hidden sm:inline" id="user-display-name"></span></button>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleLang()" class="h-9 px-2.5 bg-slate-800 text-slate-200 rounded-lg text-[11px] font-bold"><span class="lang-short">SW</span></button>
+                    <button onclick="openProfileModal()" id="user-initial" class="h-9 w-9 rounded-full bg-emerald-600 text-white font-black text-sm">?</button>
                 </div>
             </div>
         </header>
 
-        <main class="flex-1 p-2 sm:p-4 space-y-3 max-w-7xl w-full mx-auto">
+        <main class="flex-1 px-3 pt-3 pb-28 max-w-3xl w-full mx-auto">
 
-            <!-- AGENT: DAILY CLOSING -->
-            <div id="view-agent" class="space-y-3 hidden">
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-900" data-i18n="agentTitle">Daily Closing</h2>
-                        <div class="flex items-center gap-2 mt-1">
-                            <label class="text-[11px] text-slate-500 font-semibold" data-i18n="closingDate">Closing date:</label>
-                            <input type="date" id="session-date-picker" onchange="onDatePicked()" class="text-[11px] font-bold text-slate-800 border rounded-lg px-2 py-1 bg-slate-50 border-slate-300">
+            <!-- ===== CLOSE DAY (agents, and owner's "Close Day" tab) ===== -->
+            <section id="view-agent" class="space-y-3 hidden">
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 font-semibold" data-i18n="closingDate">Closing date:</label>
+                            <input type="date" id="session-date-picker" onchange="onDatePicked()" class="text-sm font-bold text-slate-800 border rounded-lg px-2 py-1.5 bg-slate-50 border-slate-300">
                         </div>
+                        <span id="session-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold border">OPEN</span>
                     </div>
-                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                        <button onclick="openUpdateRequestModal()" class="h-9 px-3 bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl text-[11px]" data-i18n="requestAdj">⚡ Request Adjustment</button>
-                        <span id="session-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">OPEN</span>
+                    <div class="grid grid-cols-3 gap-1.5 mt-3">
+                        <button onclick="setStep(1)" id="step-btn-1" class="h-10 rounded-xl font-bold text-[11px]" data-i18n="step1">1. Balances</button>
+                        <button onclick="setStep(2)" id="step-btn-2" class="h-10 rounded-xl font-bold text-[11px]" data-i18n="step2">2. Expenses</button>
+                        <button onclick="setStep(3)" id="step-btn-3" class="h-10 rounded-xl font-bold text-[11px]" data-i18n="step3">3. Review & Lock</button>
                     </div>
                 </div>
 
-                <div id="lock-warning-banner" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-2xl text-[11px] text-rose-800 font-bold"></div>
+                <div id="lock-warning-banner" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 font-bold"></div>
 
                 <div id="agent-success" class="bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-3 hidden shadow-sm">
-                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-black">✓</div>
+                    <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl font-black">✓</div>
                     <h3 class="text-lg font-black text-slate-900" data-i18n="success">Day closed and saved</h3>
-                    <p id="agent-success-sub" class="text-slate-500 text-xs max-w-md mx-auto"></p>
+                    <p id="agent-success-sub" class="text-slate-500 text-sm max-w-md mx-auto"></p>
                 </div>
 
-                <div id="agent-form-container" class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <div class="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex md:flex-col gap-1 overflow-x-auto no-scrollbar">
-                        <button onclick="setStep(1)" id="step-btn-1" class="flex-1 min-w-[90px] h-10 px-3 rounded-xl font-bold text-[11px] uppercase" data-i18n="step1">1. Balances</button>
-                        <button onclick="setStep(2)" id="step-btn-2" class="flex-1 min-w-[90px] h-10 px-3 rounded-xl font-bold text-[11px] uppercase" data-i18n="step2">2. Expenses</button>
-                        <button onclick="setStep(3)" id="step-btn-3" class="flex-1 min-w-[90px] h-10 px-3 rounded-xl font-bold text-[11px] uppercase" data-i18n="step3">3. Review & Lock</button>
+                <div id="agent-form-container" class="space-y-3">
+                    <div id="step-1" class="space-y-2.5">
+                        <p class="text-xs text-slate-500 px-1" data-i18n="balancesTitle">Closing balances</p>
+                        <div id="network-inputs-container" class="space-y-2.5"></div>
+                        <button onclick="setStep(2)" class="w-full h-12 bg-emerald-600 text-white font-bold text-sm rounded-xl shadow" data-i18n="nextExpenses">Next: Expenses →</button>
                     </div>
-                    <div class="md:col-span-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
-                        <div id="step-1" class="space-y-3">
-                            <h3 class="font-bold text-slate-900 border-b pb-1.5 text-xs" data-i18n="balancesTitle">Closing balances</h3>
-                            <div id="network-inputs-container" class="space-y-2.5"></div>
-                            <button onclick="setStep(2)" class="w-full h-12 bg-emerald-600 text-white font-bold text-xs rounded-xl" data-i18n="nextExpenses">Next: Expenses →</button>
-                        </div>
-                        <div id="step-2" class="space-y-3 hidden">
-                            <h3 class="font-bold text-slate-900 border-b pb-1.5 text-xs" data-i18n="expensesTitle">Expenses</h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <input type="number" inputmode="numeric" id="exp-amount" data-i18n-ph="amountPh" class="h-11 p-2.5 border border-slate-300 rounded-xl text-xs font-semibold">
-                                <input type="text" id="exp-note" data-i18n-ph="reasonPh" class="h-11 p-2.5 border border-slate-300 rounded-xl text-xs">
-                                <button onclick="addExpense()" class="h-11 bg-slate-900 text-white font-bold rounded-xl text-xs" data-i18n="addExpense">Add expense</button>
+                    <div id="step-2" class="space-y-3 hidden">
+                        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                            <p class="text-sm font-bold text-slate-900" data-i18n="expensesTitle">Expenses</p>
+                            <div class="grid grid-cols-5 gap-2">
+                                <input type="number" inputmode="numeric" id="exp-amount" data-i18n-ph="amountPh" class="col-span-2 h-12 p-2.5 border border-slate-300 rounded-xl text-sm font-bold">
+                                <input type="text" id="exp-note" data-i18n-ph="reasonPh" class="col-span-3 h-12 p-2.5 border border-slate-300 rounded-xl text-sm">
                             </div>
-                            <div class="border border-slate-200 rounded-xl overflow-x-auto">
-                                <table class="w-full text-left text-xs min-w-[280px]">
-                                    <thead class="bg-slate-100 text-slate-600 border-b"><tr><th class="p-2.5" data-i18n="reason">Reason</th><th class="p-2.5 text-right" data-i18n="amount">Amount</th><th class="p-2.5"></th></tr></thead>
-                                    <tbody id="expense-table-body"></tbody>
-                                </table>
-                            </div>
-                            <button onclick="setStep(3)" class="w-full h-12 bg-emerald-600 text-white font-bold text-xs rounded-xl" data-i18n="nextReview">Next: Review →</button>
+                            <button onclick="addExpense()" class="w-full h-11 bg-slate-900 text-white font-bold rounded-xl text-sm" data-i18n="addExpense">Add expense</button>
+                            <div id="expense-list" class="divide-y divide-slate-100"></div>
                         </div>
-                        <div id="step-3" class="space-y-3 hidden">
-                            <h3 class="font-bold text-slate-900 border-b pb-1.5 text-xs" data-i18n="reviewTitle">Review & lock the day</h3>
-                            <div id="review-box" class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs"></div>
-                            <button id="btn-submit-close" onclick="openConfirmLock()" class="w-full h-12 bg-emerald-600 disabled:bg-slate-300 text-white font-black text-sm rounded-xl" data-i18n="lockBtn">Save & Lock Day</button>
-                        </div>
+                        <button onclick="setStep(3)" class="w-full h-12 bg-emerald-600 text-white font-bold text-sm rounded-xl shadow" data-i18n="nextReview">Next: Review →</button>
+                    </div>
+                    <div id="step-3" class="space-y-3 hidden">
+                        <div id="review-box" class="space-y-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-sm"></div>
+                        <button id="btn-submit-close" onclick="openConfirmLock()" class="w-full h-12 bg-emerald-600 disabled:bg-slate-300 text-white font-black text-sm rounded-xl shadow" data-i18n="lockBtn">Save & Lock Day</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- OWNER DASHBOARD -->
-            <div id="view-owner" class="space-y-3 hidden">
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                <button onclick="openUpdateRequestModal()" class="w-full h-11 bg-white text-blue-700 border border-blue-200 font-bold rounded-xl text-xs" data-i18n="requestAdj">⚡ Request Adjustment</button>
+            </section>
+
+            <!-- ===== HOME ===== -->
+            <section id="tab-home" class="space-y-3 hidden">
+                <div id="home-today" class="bg-slate-900 text-white rounded-2xl p-4 shadow"></div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="openMovementModal('WITHDRAWAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-amber-700 leading-tight">🏧<br>Withdrawal</button>
+                    <button onclick="openMovementModal('CAPITAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-emerald-700 leading-tight">💰<br>Add Capital</button>
+                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission In</button>
+                </div>
+                <div id="home-alerts"></div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-bold text-slate-900">This month</p>
+                        <input type="month" class="month-pick text-xs font-bold border rounded-lg px-2 py-1 bg-slate-50 border-slate-300" onchange="setMonth(this.value)">
+                    </div>
+                    <div id="home-month"></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2">
+                    <div class="flex items-center justify-between"><p class="text-sm font-bold text-slate-900">Balances now</p><button onclick="showTab('settings')" class="text-xs font-bold text-blue-600">Manage</button></div>
+                    <div id="home-balances" class="divide-y divide-slate-100"></div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2">
+                    <p class="text-sm font-bold text-slate-900">🤖 Ask about your business</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="home-ask" onkeydown="if(event.key==='Enter') askFromHome()" placeholder="e.g. profit this month" class="flex-1 h-11 px-3 border border-slate-300 rounded-xl text-sm">
+                        <button onclick="askFromHome()" class="px-4 h-11 bg-emerald-600 text-white font-bold rounded-xl text-sm">Ask</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="askFromHome('profit this month')" class="px-2.5 py-1 rounded-full bg-slate-100 text-[11px] font-semibold">Profit this month</button>
+                        <button onclick="askFromHome('variance')" class="px-2.5 py-1 rounded-full bg-slate-100 text-[11px] font-semibold">Any shortages?</button>
+                        <button onclick="askFromHome('any advice?')" class="px-2.5 py-1 rounded-full bg-slate-100 text-[11px] font-semibold">Advice</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== HISTORY ===== -->
+            <section id="tab-history" class="space-y-3 hidden">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-3">
                     <div class="flex items-center justify-between gap-2">
-                        <h2 class="text-sm font-bold text-slate-900">Owner Dashboard</h2>
-                        <input type="month" id="owner-month" onchange="renderOwner()" class="text-[11px] font-bold border rounded-lg px-2 py-1 bg-slate-50 border-slate-300">
+                        <input type="month" class="month-pick text-sm font-bold border rounded-lg px-2 py-1.5 bg-slate-50 border-slate-300" onchange="setMonth(this.value)">
+                        <div class="flex gap-1.5">
+                            <button onclick="generateMonthlyPDF()" class="h-9 px-3 bg-rose-600 text-white font-bold rounded-lg text-[11px]">PDF</button>
+                            <button onclick="exportCSV()" class="h-9 px-3 bg-slate-700 text-white font-bold rounded-lg text-[11px]">Excel</button>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button onclick="openMovementModal('CAPITAL')" class="h-10 bg-emerald-600 text-white font-bold rounded-xl text-[11px]">+ Capital</button>
-                        <button onclick="openMovementModal('WITHDRAWAL')" class="h-10 bg-amber-600 text-white font-bold rounded-xl text-[11px]">− Owner Withdrawal</button>
-                        <button onclick="openMovementModal('COMMISSION_IN')" class="h-10 bg-teal-700 text-white font-bold rounded-xl text-[11px]">+ Commission Received</button>
-                        <button onclick="openNetworkModal()" class="h-10 bg-slate-900 text-white font-bold rounded-xl text-[11px]">+ Network</button>
-                        <button onclick="openAgentModal()" class="h-10 bg-blue-600 text-white font-bold rounded-xl text-[11px]">+ Account</button>
-                        <button onclick="generateMonthlyPDF()" class="h-10 bg-rose-600 text-white font-bold rounded-xl text-[11px]">📄 Month PDF</button>
-                        <button onclick="exportCSV()" class="h-10 bg-slate-700 text-white font-bold rounded-xl text-[11px]">⬇ Month CSV (Excel)</button>
-                    </div>
+                    <div id="history-summary"></div>
                 </div>
+                <div id="closings-list" class="space-y-2"></div>
+                <p id="legacy-note" class="hidden text-[11px] text-slate-400 px-1">* Saved with an older formula and shown as recorded. Daily checking starts from the first closing made with the new version.</p>
+            </section>
 
-                <div id="owner-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
-
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                    <h3 class="font-bold text-slate-900 text-xs border-b pb-1.5 border-slate-100">Pending Adjustment Requests</h3>
-                    <div id="update-requests-list" class="space-y-1.5"></div>
+            <!-- ===== MONEY ===== -->
+            <section id="tab-money" class="space-y-3 hidden">
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="openMovementModal('WITHDRAWAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-amber-700 leading-tight">🏧<br>Withdrawal</button>
+                    <button onclick="openMovementModal('CAPITAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-emerald-700 leading-tight">💰<br>Add Capital</button>
+                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission In</button>
                 </div>
-
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                    <div class="flex justify-between items-center border-b pb-1.5 border-slate-100">
-                        <h3 class="font-bold text-slate-900 text-xs">Daily Closings (selected month)</h3>
+                <div id="money-requests"></div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-bold text-slate-900">Money in & out</p>
+                        <input type="month" class="month-pick text-xs font-bold border rounded-lg px-2 py-1 bg-slate-50 border-slate-300" onchange="setMonth(this.value)">
                     </div>
-                    <div class="border border-slate-200 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[720px]">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr>
-                                    <th class="p-2.5">Date</th><th class="p-2.5">By</th>
-                                    <th class="p-2.5 text-right">Volume</th>
-                                    <th class="p-2.5 text-right">Lipa kwa Simu (Profit)</th>
-                                    <th class="p-2.5 text-right">Expenses</th>
-                                    <th class="p-2.5 text-right">Closing Total</th>
-                                    <th class="p-2.5 text-right">Day Difference</th>
-                                    <th class="p-2.5 text-right"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-closure-table-body"></tbody>
-                        </table>
-                    </div>
-                    <p class="text-[10px] text-slate-400">* Older entries were saved with an earlier formula and are shown as recorded. The day-by-day check starts from the first closing made with this version.</p>
+                    <div id="money-summary"></div>
+                    <div id="movements-list" class="divide-y divide-slate-100"></div>
                 </div>
+            </section>
 
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                    <h3 class="font-bold text-slate-900 text-xs border-b pb-1.5 border-slate-100">Money In / Out & Adjustments (selected month)</h3>
-                    <p class="text-[10px] text-slate-400">Capital added, owner withdrawals, commission received from providers, and approved balance adjustments. Items not yet included in a closing can be deleted.</p>
-                    <div class="border border-slate-200 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[600px]">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr><th class="p-2.5">Date</th><th class="p-2.5">Type</th><th class="p-2.5">Network</th><th class="p-2.5 text-right">Amount</th><th class="p-2.5">Note</th><th class="p-2.5 text-right"></th></tr>
-                            </thead>
-                            <tbody id="movements-table-body"></tbody>
-                        </table>
-                    </div>
+            <!-- ===== SETTINGS ===== -->
+            <section id="tab-settings" class="space-y-3 hidden">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2">
+                    <div class="flex items-center justify-between"><p class="text-sm font-bold text-slate-900">Team accounts</p><button onclick="openAgentModal()" class="h-8 px-3 bg-blue-600 text-white font-bold rounded-lg text-xs">+ Add</button></div>
+                    <div id="accounts-list" class="divide-y divide-slate-100"></div>
+                    <p class="text-[11px] text-slate-400">WhatsApp alerts go to Owners/Admins with a phone number and CallMeBot key (tap a person to edit).</p>
                 </div>
-
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                    <h3 class="font-bold text-slate-900 text-xs border-b pb-1.5 border-slate-100">Providers: Commission & Float</h3>
-                    <p class="text-[10px] text-slate-400">Only Lipa kwa Simu commission counts as daily profit. Other providers pay commission at month end — record it with “+ Commission Received” when it arrives.</p>
-                    <div class="border border-slate-200 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[640px]">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr><th class="p-2.5">Network</th><th class="p-2.5 text-right">Balance Now</th><th class="p-2.5 text-right">Min Target</th><th class="p-2.5 text-right">Fees This Month</th><th class="p-2.5 text-center">Status</th><th class="p-2.5 text-right"></th></tr>
-                            </thead>
-                            <tbody id="provider-table-body"></tbody>
-                        </table>
-                    </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2">
+                    <div class="flex items-center justify-between"><p class="text-sm font-bold text-slate-900">Networks & drawer</p><button onclick="openNetworkModal()" class="h-8 px-3 bg-slate-900 text-white font-bold rounded-lg text-xs">+ Add</button></div>
+                    <div id="networks-list" class="divide-y divide-slate-100"></div>
+                    <p class="text-[11px] text-slate-400">Only Lipa kwa Simu commission counts as daily profit. Record other providers' month-end commission with "Commission In".</p>
                 </div>
-
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                    <h3 class="font-bold text-slate-900 text-xs border-b pb-1.5 border-slate-100">Accounts</h3>
-                    <p class="text-[10px] text-slate-400">WhatsApp alerts go to Owners/Admins who have a phone number and a CallMeBot key saved (Edit → CallMeBot key).</p>
-                    <div class="border border-slate-200 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[550px]">
-                            <thead class="bg-slate-100 text-slate-600 border-b">
-                                <tr><th class="p-2.5">Name</th><th class="p-2.5">Username</th><th class="p-2.5">Role</th><th class="p-2.5">Phone</th><th class="p-2.5 text-center">WhatsApp</th><th class="p-2.5 text-right"></th></tr>
-                            </thead>
-                            <tbody id="agents-table-body"></tbody>
-                        </table>
-                    </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+                    <button onclick="openProfileModal()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">My profile & PIN <span class="text-slate-400">›</span></button>
+                    <button onclick="toggleLang()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">Language <span class="text-slate-500 text-xs lang-name">English</span></button>
+                    <button onclick="handleLogout()" class="w-full text-left p-3.5 text-sm font-bold text-rose-600">Log out</button>
                 </div>
-            </div>
+            </section>
         </main>
+
+        <nav id="bottom-nav" class="hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+            <div class="max-w-3xl mx-auto grid grid-cols-5">
+                <button onclick="showTab('home')" data-tab="home" class="nav-btn h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">🏠</span>Home</button>
+                <button onclick="showTab('close')" data-tab="close" class="nav-btn h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">🔒</span>Close Day</button>
+                <button onclick="showTab('history')" data-tab="history" class="nav-btn h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">📅</span>History</button>
+                <button onclick="showTab('money')" data-tab="money" class="nav-btn relative h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">💵</span>Money<span id="nav-badge" class="hidden absolute top-2 right-4 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] leading-4"></span></button>
+                <button onclick="showTab('settings')" data-tab="settings" class="nav-btn h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">⚙️</span>Settings</button>
+            </div>
+        </nav>
     </div>
 
     <!-- TOAST -->
-    <div id="toast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[92%] p-3 rounded-xl text-xs font-bold shadow-2xl text-center"></div>
+    <div id="toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[92%] p-3 rounded-xl text-xs font-bold shadow-2xl text-center"></div>
 
     <!-- AI ASSISTANT -->
-    <div id="ai-fab" class="fixed bottom-4 right-4 z-40 hidden">
-        <button onclick="toggleAiModal()" class="bg-emerald-600 text-white font-bold p-3.5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white"><span class="text-xl">🤖</span><span class="text-xs hidden sm:inline">Assistant</span></button>
-    </div>
     <div id="modal-ai-assistant" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-3 hidden z-50">
         <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full h-[520px] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             <div class="bg-slate-900 text-white p-3.5 flex justify-between items-center">
@@ -288,8 +282,8 @@
     </div>
 
     <!-- CONFIRM LOCK -->
-    <div id="modal-confirm-lock" class="fixed inset-0 bg-slate-900/70 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+    <div id="modal-confirm-lock" class="fixed inset-0 bg-slate-900/70 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
             <h3 class="font-bold text-slate-900 text-sm" data-i18n="confirmTitle">Lock this day?</h3>
             <p class="text-[11px] text-slate-500" data-i18n="confirmSub"></p>
             <div id="confirm-summary" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1"></div>
@@ -306,16 +300,16 @@
     </div>
 
     <!-- CLOSING DETAILS -->
-    <div id="modal-closure" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-lg w-full space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto">
+    <div id="modal-closure" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-lg w-full space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center"><h3 class="font-bold text-slate-900 text-sm" id="closure-title">Closing</h3><button onclick="closeModal('modal-closure')" class="text-slate-400 font-bold px-2">✕</button></div>
             <div id="closure-body" class="text-xs space-y-2"></div>
         </div>
     </div>
 
     <!-- ADJUSTMENT REQUEST -->
-    <div id="modal-update-request" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+    <div id="modal-update-request" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
             <h3 class="font-bold text-slate-900 text-sm" data-i18n="reqTitle">Request balance adjustment</h3>
             <p class="text-[10px] text-slate-500" data-i18n="reqSub"></p>
             <div class="space-y-2.5">
@@ -334,8 +328,8 @@
     </div>
 
     <!-- MONEY MOVEMENT (capital / withdrawal / commission received) -->
-    <div id="modal-movement" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+    <div id="modal-movement" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
             <h3 class="font-bold text-slate-900 text-sm" id="mv-title">Record money movement</h3>
             <p class="text-[10px] text-slate-500" id="mv-help"></p>
             <input type="hidden" id="mv-type">
@@ -355,8 +349,8 @@
     </div>
 
     <!-- NETWORK (add / edit) -->
-    <div id="modal-network" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+    <div id="modal-network" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-3 shadow-2xl">
             <h3 class="font-bold text-slate-900 text-sm" id="net-modal-title">Add Network</h3>
             <input type="hidden" id="net-edit-id">
             <div class="space-y-2.5">
@@ -375,8 +369,8 @@
     </div>
 
     <!-- EDIT USER -->
-    <div id="modal-edit-user" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-2.5 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div id="modal-edit-user" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-2.5 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="font-bold text-slate-900 text-sm">Edit Account</h3>
             <input type="hidden" id="edit-user-docid">
             <div><label class="text-[10px] font-bold text-slate-600 uppercase">Display Name</label><input type="text" id="edit-user-name" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5"></div>
@@ -395,8 +389,8 @@
     </div>
 
     <!-- CREATE ACCOUNT -->
-    <div id="modal-agent" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-md w-full space-y-2.5 shadow-2xl">
+    <div id="modal-agent" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-2.5 shadow-2xl">
             <h3 class="font-bold text-slate-900 text-sm">Create Account</h3>
             <div class="space-y-2">
                 <input type="text" id="new-agent-name" placeholder="Full name" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs">
@@ -415,8 +409,8 @@
     </div>
 
     <!-- PROFILE -->
-    <div id="modal-profile" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl">
+    <div id="modal-profile" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-sm w-full space-y-3 shadow-2xl">
             <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
                 <h3 class="font-bold text-slate-900 text-sm" data-i18n="profile">Profile</h3>
                 <span id="prof-role-badge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 border border-slate-200">ROLE</span>
@@ -538,6 +532,7 @@ function applyI18n() {
     document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
     document.querySelectorAll('.lang-btn').forEach(b => { b.textContent = LANG === 'en' ? 'Badili lugha: Kiswahili' : 'Switch language: English'; });
     document.querySelectorAll('.lang-short').forEach(b => { b.textContent = LANG === 'en' ? 'SW' : 'EN'; });
+    document.querySelectorAll('.lang-name').forEach(b => { b.textContent = LANG === 'en' ? 'English' : 'Kiswahili'; });
     updateNetStatus();
 }
 function toggleLang() {
@@ -570,7 +565,7 @@ let toastTimer = null;
 function toast(msg, kind) {
     const el = $('toast');
     el.textContent = msg;
-    el.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[92%] p-3 rounded-xl text-xs font-bold shadow-2xl text-center ' +
+    el.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] max-w-sm w-[92%] p-3 rounded-xl text-xs font-bold shadow-2xl text-center ' +
         (kind === 'error' ? 'bg-rose-600 text-white' : kind === 'warn' ? 'bg-amber-500 text-slate-900' : 'bg-emerald-600 text-white');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.add('hidden'), kind === 'error' ? 6000 : 3000);
@@ -752,7 +747,7 @@ auth.onAuthStateChanged(async (user) => {
         currentUser = null;
         $('view-app').classList.add('hidden');
         $('view-login').classList.remove('hidden');
-        $('ai-fab').classList.add('hidden');
+        $('bottom-nav').classList.add('hidden');
         btn.disabled = false; btn.innerText = t('signIn');
     }
 });
@@ -787,31 +782,35 @@ function showAppForUser(user) {
     $('login-error').classList.add('hidden');
     $('view-login').classList.add('hidden');
     $('view-app').classList.remove('hidden');
-    $('user-display-name').innerText = user.name || '';
+    $('user-initial').innerText = ((user.name || '?').trim()[0] || '?').toUpperCase();
     $('session-date-picker').value = localDate();
-    $('owner-month').value = localDate().slice(0, 7);
-    if (isBoss(user)) {
-        $('admin-view-switcher').classList.remove('hidden');
-        $('ai-fab').classList.remove('hidden');
-        switchAdminTab('OWNER');
-    } else {
-        $('admin-view-switcher').classList.add('hidden');
-        $('ai-fab').classList.add('hidden');
-        $('view-agent').classList.remove('hidden');
-        $('view-owner').classList.add('hidden');
-    }
+    setMonth(localDate().slice(0, 7), true);
+    $('bottom-nav').classList.toggle('hidden', !isBoss(user));
     setStep(1);
+    showTab(isBoss(user) ? 'home' : 'close');
+}
+
+let currentTab = 'close';
+const TAB_SECTIONS = { home: 'tab-home', close: 'view-agent', history: 'tab-history', money: 'tab-money', settings: 'tab-settings' };
+const TAB_TITLES = { home: 'Home', close: null, history: 'History', money: 'Money', settings: 'Settings' };
+function showTab(tab) {
+    if (!isBoss(currentUser)) tab = 'close';
+    currentTab = tab;
+    Object.keys(TAB_SECTIONS).forEach(k => $(TAB_SECTIONS[k]).classList.toggle('hidden', k !== tab));
+    document.querySelectorAll('.nav-btn').forEach(b => {
+        b.className = 'nav-btn relative h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold ' + (b.dataset.tab === tab ? 'text-emerald-700' : 'text-slate-400');
+    });
+    $('page-title').innerText = TAB_TITLES[tab] || t('agentTitle');
+    window.scrollTo(0, 0);
     renderAll();
 }
 
-function switchAdminTab(target) {
-    const on = 'px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 text-white';
-    const off = 'px-2.5 py-1 text-[11px] font-bold rounded-lg text-slate-300';
-    $('view-owner').classList.toggle('hidden', target !== 'OWNER');
-    $('view-agent').classList.toggle('hidden', target === 'OWNER');
-    $('tab-btn-owner').className = target === 'OWNER' ? on : off;
-    $('tab-btn-agent').className = target === 'OWNER' ? off : on;
-    renderAll();
+let selectedMonthVal = '';
+function selectedMonth() { return selectedMonthVal || localDate().slice(0, 7); }
+function setMonth(v, silent) {
+    selectedMonthVal = v || localDate().slice(0, 7);
+    document.querySelectorAll('.month-pick').forEach(el => { el.value = selectedMonthVal; });
+    if (!silent) renderAll();
 }
 
 // ===================================================================
@@ -824,7 +823,8 @@ function renderAll() {
     renderExpenses();
     renderReview();
     populateDropdowns();
-    if (isBoss(currentUser)) renderOwner();
+    if (isBoss(currentUser)) renderBoss();
+    if (currentTab === 'close') $('page-title').innerText = t('agentTitle');
 }
 
 // ---------- Agent ----------
@@ -850,7 +850,7 @@ function refreshAgentState() {
 
     const badge = $('session-badge');
     badge.innerText = locked ? t('sessionLocked') : t('sessionOpen');
-    badge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold border ' + (locked ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-amber-100 text-amber-800 border-amber-200');
+    badge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold border ' + (locked ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-amber-100 text-amber-800 border-amber-200');
 
     const banner = $('lock-warning-banner');
     const showSuccess = agentSuccessDate && agentSuccessDate === d;
@@ -889,19 +889,20 @@ function renderNetworkInputs() {
                 check = `<div class="text-[10px] mt-1 text-slate-500">${esc(t('changeToday'))}: <b>${fmtSigned(cl - opening - moves)}</b></div>`;
             }
         }
-        const field = (key, label, val) => `
-            <div><label class="text-[9px] text-slate-500 font-bold">${esc(label)}</label>
-            <input type="number" inputmode="numeric" value="${num(val)}" onfocus="this.select()" onchange="updateNetworkVal('${esc(n.id)}', '${key}', this.value)" class="w-full h-10 p-1.5 border border-slate-300 rounded-lg bg-white font-bold text-slate-800"></div>`;
+        const field = (key, label, val, big) => `
+            <div><label class="${big ? 'text-[11px] text-slate-700' : 'text-[10px] text-slate-500'} font-bold">${esc(label)}</label>
+            <input type="number" inputmode="numeric" value="${num(val)}" onfocus="this.select()" onchange="updateNetworkVal('${esc(n.id)}', '${key}', this.value)"
+                class="w-full ${big ? 'h-12 text-base border-emerald-300 bg-emerald-50/40' : 'h-10 text-sm border-slate-300 bg-white'} px-2.5 border rounded-xl font-bold text-slate-800 mt-0.5"></div>`;
         return `
-        <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
-            <div class="flex justify-between items-center border-b border-slate-200 pb-1.5 gap-2">
-                <span class="font-bold text-xs text-slate-800">${esc(n.name)}${n.code === PROFIT_COMMISSION_CODE ? ' <span class="text-emerald-600">★</span>' : ''}</span>
-                <span class="text-[9px] text-slate-500 font-bold">${esc(t('opening'))}: ${opening === null ? '—' : fmt(opening + moves)}</span>
+        <div class="bg-white p-3.5 border border-slate-200 rounded-2xl shadow-sm space-y-2.5">
+            <div class="flex justify-between items-baseline gap-2">
+                <span class="font-bold text-sm text-slate-900">${esc(n.name)}${n.code === PROFIT_COMMISSION_CODE ? ' <span class="text-emerald-600 text-[10px]">★ profit</span>' : ''}</span>
+                <span class="text-[10px] text-slate-500 text-right">${esc(t('opening'))}<br><b class="text-slate-700">${opening === null ? '—' : fmt(opening + moves)}</b></span>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            ${field('closingFloat', t('closing'), n.closingFloat, true)}
+            <div class="grid grid-cols-3 gap-2">
                 ${field('deposits', t('deposits'), n.deposits)}
                 ${field('withdrawals', t('withdrawals'), n.withdrawals)}
-                ${field('closingFloat', t('closing'), n.closingFloat)}
                 ${field('commission', t('commission'), n.commission)}
             </div>
             ${check}
@@ -921,14 +922,14 @@ function updateNetworkVal(id, field, value) {
 }
 
 function renderExpenses() {
-    const tbody = $('expense-table-body');
-    if (!expenses.length) { tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-400">${esc(t('noExpenses'))}</td></tr>`; return; }
-    tbody.innerHTML = expenses.map(e => `
-        <tr class="border-b border-slate-100">
-            <td class="p-2.5 font-medium text-slate-700">${esc(e.note)}</td>
-            <td class="p-2.5 text-right font-bold text-rose-600">${fmt(e.amount)}</td>
-            <td class="p-2.5 text-center"><button onclick="deleteExpense('${esc(e.id)}')" class="text-xs text-rose-600 font-bold">${esc(t('del'))}</button></td>
-        </tr>`).join('');
+    const box = $('expense-list');
+    if (!expenses.length) { box.innerHTML = `<p class="py-3 text-center text-sm text-slate-400">${esc(t('noExpenses'))}</p>`; return; }
+    box.innerHTML = expenses.map(e => `
+        <div class="flex items-center justify-between gap-2 py-2.5">
+            <span class="text-sm text-slate-700">${esc(e.note)}</span>
+            <span class="flex items-center gap-3"><b class="text-sm text-rose-600">${fmt(e.amount)}</b>
+            <button onclick="deleteExpense('${esc(e.id)}')" class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 font-bold" aria-label="${esc(t('del'))}">✕</button></span>
+        </div>`).join('') + `<div class="flex justify-between pt-2.5 text-sm font-bold"><span>${esc(t('rvExp'))}</span><span class="text-rose-700">${fmt(sum(expenses, e => e.amount))}</span></div>`;
 }
 
 function addExpense() {
@@ -965,7 +966,7 @@ function setStep(step) {
     currentStep = step;
     for (let i = 1; i <= 3; i++) {
         $(`step-${i}`).classList.toggle('hidden', i !== step);
-        $(`step-btn-${i}`).className = 'flex-1 min-w-[90px] h-10 px-3 rounded-xl font-bold text-[11px] uppercase ' + (i === step ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-slate-600');
+        $(`step-btn-${i}`).className = 'h-10 rounded-xl font-bold text-[11px] ' + (i === step ? 'bg-emerald-600 text-white' : i < step ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500');
     }
     if (step === 3) renderReview();
 }
@@ -1070,106 +1071,176 @@ function populateDropdowns() {
     ['req-target', 'mv-target'].forEach(id => { const el = $(id); const v = el.value; el.innerHTML = opts; if (v) el.value = v; });
 }
 
-function card(label, value, cls, sub) {
-    return `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${label}</p>
-        <p class="text-xs sm:text-base font-black mt-0.5 ${cls || 'text-slate-900'}">${value}</p>
-        ${sub ? `<p class="text-[9px] text-slate-400 mt-0.5">${sub}</p>` : ''}</div>`;
+// ---------- Owner / Admin screens ----------
+function niceDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T12:00:00');
+    return isNaN(dt) ? d : dt.toLocaleDateString(LANG === 'sw' ? 'sw-TZ' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function tile(label, value, cls) {
+    return `<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-500 uppercase">${label}</p><p class="text-base font-black mt-0.5 ${cls || 'text-slate-900'}">${value}</p></div>`;
+}
+function line(label, value) {
+    return `<div class="flex justify-between gap-2 py-1.5 text-sm"><span class="text-slate-600">${label}</span><span class="font-bold text-right">${value}</span></div>`;
+}
+const MOVE_ICONS = { CAPITAL: '💰', WITHDRAWAL: '🏧', COMMISSION_IN: '📥', ADJUSTMENT: '⚖️' };
+
+function requestCard(r) {
+    const pending = r.status === 'PENDING';
+    return `<div class="p-3 rounded-xl border ${pending ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'} space-y-2">
+        <div class="text-sm"><b>${esc(r.requestedBy)}</b> asks to set <b>${esc(r.target)}</b> to <b>${fmt(r.amount)}</b>${r.delta !== undefined ? ` <span class="text-slate-500">(${fmtSigned(r.delta)})</span>` : ''}</div>
+        <div class="text-xs text-slate-500">Reason: ${esc(r.note || '—')}</div>
+        ${pending ? `<div class="grid grid-cols-2 gap-2">
+            <button onclick="approveAdjustment('${esc(r.id)}')" class="h-10 bg-emerald-600 text-white rounded-lg text-xs font-bold">Approve</button>
+            <button onclick="rejectAdjustment('${esc(r.id)}')" class="h-10 bg-white border border-rose-200 text-rose-600 rounded-lg text-xs font-bold">Reject</button></div>`
+            : `<span class="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md text-[10px] font-bold">${esc(r.status)}</span>`}
+    </div>`;
 }
 
-function renderOwner() {
-    const ym = $('owner-month').value || localDate().slice(0, 7);
-    const m = monthStats(ym);
+function renderBoss() {
+    const m = monthStats(selectedMonth());
     const o = overallRec();
-    const lc = lastClosure();
-    const lowCount = networks.filter(n => num(n.closingFloat) < num(n.minFloat)).length;
-
-    $('owner-cards').innerHTML =
-        card(`Net profit (${esc(ym)})`, fmt(m.net), m.net < 0 ? 'text-rose-600' : 'text-emerald-600', `Lipa kwa Simu ${fmt(m.lks)} − expenses ${fmt(m.exp)}`)
-        + card('Balances now (all networks)', fmt(o.actual), 'text-slate-900', lowCount ? `⚠️ ${lowCount} below minimum` : 'All above minimum')
-        + card('Capital invested (all time)', fmt(o.capital), 'text-blue-600')
-        + card('Overall difference (all time)', varianceBadge(o.variance), '', `Expected ${fmt(o.expected)}`)
-        + card('Last closing', lc ? esc(lc.rawDate) : '—', 'text-slate-900', lc ? (isNewFormat(lc) ? 'Day difference: ' + varianceBadge(lc.variance) : 'older format') : '')
-        + card(`Owner withdrawals (${esc(ym)})`, fmt(m.withdrawals), 'text-amber-600')
-        + card(`Commission received (${esc(ym)})`, fmt(m.commissionIn), 'text-teal-700', `Fees recorded by agents: ${fmt(m.fees - m.lks)}`)
-        + card(`Adjustments (${esc(ym)})`, fmtSigned(m.adjustments), m.adjustments < 0 ? 'text-rose-600' : 'text-slate-900', m.newFormatDays ? `Sum of day differences: ${fmtSigned(m.dayVariance)}` : '');
-
-    // Requests
     const pending = updateRequests.filter(r => r.status === 'PENDING');
-    const recent = updateRequests.filter(r => r.status !== 'PENDING').slice(0, 5);
-    $('update-requests-list').innerHTML = (!pending.length && !recent.length) ? `<p class="text-xs text-slate-400 italic">No adjustment requests.</p>` :
-        [...pending, ...recent].map(r => `
-        <div class="p-2.5 border border-slate-200 rounded-xl ${r.status === 'PENDING' ? 'bg-amber-50' : 'bg-slate-50'} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
-            <div><b>${esc(r.requestedBy)}</b>: set <b class="text-blue-600">${esc(r.target)}</b> to <b>${fmt(r.amount)}</b>
-                ${r.delta !== undefined ? ` <span class="text-slate-500">(${fmtSigned(r.delta)})</span>` : ''}
-                <p class="text-[10px] text-slate-500 mt-0.5">Reason: ${esc(r.note || '—')}</p></div>
-            <div class="flex items-center gap-1.5">${r.status === 'PENDING'
-                ? `<button onclick="approveAdjustment('${esc(r.id)}')" class="px-2 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold">Approve</button>
-                   <button onclick="rejectAdjustment('${esc(r.id)}')" class="px-2 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-bold">Reject</button>`
-                : `<span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold">${esc(r.status)}</span>`}</div>
-        </div>`).join('');
+    const badge = $('nav-badge');
+    badge.textContent = pending.length;
+    badge.classList.toggle('hidden', !pending.length);
+    if (currentTab === 'home') renderHome(m, o, pending);
+    if (currentTab === 'history') renderHistory(m);
+    if (currentTab === 'money') renderMoney(m, pending);
+    if (currentTab === 'settings') renderSettings();
+}
 
-    // Closings
-    const latestId = lc ? lc.id : null;
-    $('admin-closure-table-body').innerHTML = !m.logs.length ? `<tr><td colspan="8" class="p-3 text-center text-slate-400">No closings in this month.</td></tr>` :
-        m.logs.map(s => `
-        <tr class="border-b border-slate-100">
-            <td class="p-2.5 font-bold text-slate-800">${esc(s.rawDate || s.id)}</td>
-            <td class="p-2.5 text-slate-600">${esc(s.submittedBy || '')}</td>
-            <td class="p-2.5 text-right">${fmt(s.volume)}</td>
-            <td class="p-2.5 text-right font-bold text-emerald-600">${fmt(s.lipaKwaSimuCommission)}</td>
-            <td class="p-2.5 text-right font-bold text-rose-600">${fmt(s.expenses)}</td>
-            <td class="p-2.5 text-right font-black">${isNewFormat(s) ? fmt(s.closingTotal) : fmt(s.moneyPosition) + '*'}</td>
-            <td class="p-2.5 text-right">${isNewFormat(s) ? varianceBadge(s.variance) : '<span class="text-slate-400">—</span>'}</td>
-            <td class="p-2.5 text-right whitespace-nowrap">
-                <button onclick="showClosure('${esc(s.id)}')" class="text-[10px] font-bold text-blue-600">View</button>
-                ${s.id === latestId && isNewFormat(s) ? `<button onclick="reopenClosure('${esc(s.id)}')" class="text-[10px] font-bold text-rose-600 ml-2">Reopen</button>` : ''}
-            </td>
-        </tr>`).join('') + `
-        <tr class="bg-slate-50 font-bold"><td class="p-2.5" colspan="2">Month total</td><td class="p-2.5 text-right">${fmt(m.volume)}</td>
-            <td class="p-2.5 text-right text-emerald-700">${fmt(m.lks)}</td><td class="p-2.5 text-right text-rose-700">${fmt(m.exp)}</td>
-            <td class="p-2.5"></td><td class="p-2.5 text-right">${m.newFormatDays ? fmtSigned(m.dayVariance) : ''}</td><td></td></tr>`;
+function renderHome(m, o, pending) {
+    const today = localDate();
+    const lockedToday = historicalLogs.find(l => l.rawDate === today);
+    const lc = lastClosure();
+    const live = dayRec();
+    $('home-today').innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-300 font-semibold">Today · ${esc(niceDate(today))}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${lockedToday ? 'bg-emerald-500 text-slate-900' : 'bg-amber-400 text-slate-900'}">${lockedToday ? '✓ Closed' : 'Not closed yet'}</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-3">Balances now (all networks + drawer)</p>
+        <p class="text-3xl font-black tracking-tight">${fmt(o.actual)}</p>
+        <div class="grid grid-cols-2 gap-3 mt-3 text-xs">
+            <div><p class="text-slate-400">Lipa kwa Simu today</p><p class="font-bold text-emerald-400 text-sm">${fmt(lockedToday ? lockedToday.lipaKwaSimuCommission : live.lks)}</p></div>
+            <div><p class="text-slate-400">Last closing ${lc ? '(' + esc(niceDate(lc.rawDate)) + ')' : ''}</p><p class="font-bold text-sm">${lc && isNewFormat(lc) ? varianceBadge(lc.variance).replace('text-emerald-600', 'text-emerald-400') : '—'}</p></div>
+        </div>
+        ${lockedToday ? `<p class="text-[11px] text-slate-400 mt-3">Closed by ${esc(lockedToday.submittedBy || '—')}</p>`
+            : `<button onclick="showTab('close')" class="w-full h-11 mt-3 bg-emerald-500 text-slate-900 font-black rounded-xl text-sm">Close today →</button>`}`;
 
-    // Movements
-    $('movements-table-body').innerHTML = !m.moves.length ? `<tr><td colspan="6" class="p-3 text-center text-slate-400">Nothing recorded this month.</td></tr>` :
-        m.moves.map(c => `
-        <tr class="border-b border-slate-100">
-            <td class="p-2.5">${esc(dateOfEntry(c))}</td>
-            <td class="p-2.5 font-bold">${esc((MOVE_TYPES[moveType(c)] || {}).label || moveType(c))}</td>
-            <td class="p-2.5">${esc(c.target || '')}</td>
-            <td class="p-2.5 text-right font-bold ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</td>
-            <td class="p-2.5 text-slate-600">${esc(c.note || '')}${c.by ? ` <span class="text-slate-400">· ${esc(c.by)}</span>` : ''}</td>
-            <td class="p-2.5 text-right">${c.type && !c.closedIn ? `<button onclick="deleteMovement('${esc(c.id)}')" class="text-[10px] font-bold text-rose-600">Delete</button>` : ''}</td>
-        </tr>`).join('');
+    // Things that need attention
+    const alerts = [];
+    pending.forEach(r => alerts.push(requestCard(r)));
+    if (lc && isNewFormat(lc) && Math.round(num(lc.variance)) !== 0) {
+        alerts.push(`<button onclick="showClosure('${esc(lc.id)}')" class="w-full text-left p-3 rounded-xl border border-rose-200 bg-rose-50 text-sm"><b class="text-rose-700">${fmtSigned(lc.variance)} ${num(lc.variance) < 0 ? 'short' : 'over'}</b> on ${esc(niceDate(lc.rawDate))}<div class="text-xs text-slate-600 mt-0.5">${esc(lc.varianceNote || '')}</div></button>`);
+    }
+    networks.filter(n => num(n.closingFloat) < num(n.minFloat)).forEach(n => alerts.push(
+        `<div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">⚠️ <b>${esc(n.name)}</b> is low: ${fmt(n.closingFloat)} <span class="text-slate-500">(top up ${fmt(num(n.minFloat) - num(n.closingFloat))})</span></div>`));
+    if (lc && lc.rawDate < shiftDate(today, -1)) {
+        alerts.push(`<div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">📅 No closing since <b>${esc(niceDate(lc.rawDate))}</b></div>`);
+    }
+    if (!(currentUser.phone && currentUser.callmebotKey)) {
+        alerts.push(`<button onclick="openEditUserModal('${esc(currentUser.id)}')" class="w-full text-left p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">📱 Your WhatsApp alerts are off — <b class="text-blue-600">add your CallMeBot key</b></button>`);
+    }
+    $('home-alerts').innerHTML = alerts.length
+        ? `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2"><p class="text-sm font-bold text-slate-900">Needs attention</p>${alerts.join('')}</div>`
+        : `<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-sm font-bold text-emerald-800">✓ Nothing needs your attention</div>`;
 
-    // Providers
-    $('provider-table-body').innerHTML = sortedNetworks().map(n => {
+    $('home-month').innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+            ${tile('Net profit', fmt(m.net), m.net < 0 ? 'text-rose-600' : 'text-emerald-600')}
+            ${tile('Lipa kwa Simu', fmt(m.lks), 'text-slate-900')}
+            ${tile('Expenses', fmt(m.exp), 'text-rose-600')}
+            ${tile('Withdrawals', fmt(m.withdrawals), 'text-amber-600')}
+        </div>
+        <div class="divide-y divide-slate-100 mt-1">
+            ${line('Days closed', m.logs.length)}
+            ${line('Commission received', fmt(m.commissionIn))}
+            ${m.newFormatDays ? line('Daily differences (total)', varianceBadge(m.dayVariance)) : ''}
+            ${line('Overall check (all time)', varianceBadge(o.variance))}
+        </div>`;
+
+    $('home-balances').innerHTML = sortedNetworks().map(n => {
         const low = num(n.closingFloat) < num(n.minFloat);
-        const feesMonth = sum(m.logs, l => (l.providerCommissions || {})[n.code]);
-        return `<tr class="border-b border-slate-100">
-            <td class="p-2.5 font-bold">${esc(n.name)} <span class="text-slate-400">(${esc(n.code)})</span>${n.code === PROFIT_COMMISSION_CODE ? ' <span class="text-emerald-600 text-[10px]">profit</span>' : ''}</td>
-            <td class="p-2.5 text-right font-black">${fmt(n.closingFloat)}</td>
-            <td class="p-2.5 text-right text-slate-600">${fmt(n.minFloat)}</td>
-            <td class="p-2.5 text-right">${fmt(feesMonth)}</td>
-            <td class="p-2.5 text-center"><span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${low ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}">${low ? 'Top up needed' : 'OK'}</span></td>
-            <td class="p-2.5 text-right whitespace-nowrap"><button onclick="openNetworkModal('${esc(n.id)}')" class="text-[10px] font-bold text-blue-600">Edit</button>
-                <button onclick="deleteNetwork('${esc(n.id)}')" class="text-[10px] font-bold text-rose-600 ml-2">Delete</button></td>
-        </tr>`;
+        return `<div class="flex items-center justify-between py-2.5 text-sm">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full ${low ? 'bg-rose-500' : 'bg-emerald-500'}"></span>${esc(n.name)}</span>
+            <b class="${low ? 'text-rose-600' : 'text-slate-900'}">${fmt(n.closingFloat)}</b></div>`;
     }).join('');
+}
 
-    // Accounts
-    $('agents-table-body').innerHTML = accounts.map(a => {
-        const ready = !!(a.phone && a.callmebotKey);
-        return `<tr class="border-b border-slate-100">
-            <td class="p-2.5 font-bold">${esc(a.name)}</td>
-            <td class="p-2.5 text-blue-700 font-bold">${esc(a.username)}</td>
-            <td class="p-2.5 font-bold">${esc(a.role)}</td>
-            <td class="p-2.5 text-slate-600">${esc(a.phone || '—')}</td>
-            <td class="p-2.5 text-center"><span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${ready ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}">${ready ? 'On' : 'Off'}</span></td>
-            <td class="p-2.5 text-right whitespace-nowrap"><button onclick="openEditUserModal('${esc(a.id)}')" class="text-xs font-bold text-blue-600">Edit</button>
-                ${a.id !== currentUser.id ? `<button onclick="deleteAccount('${esc(a.id)}')" class="text-xs font-bold text-rose-600 ml-2">Delete</button>` : ''}</td>
-        </tr>`;
+function renderHistory(m) {
+    const hasLegacy = m.logs.some(l => !isNewFormat(l));
+    $('history-summary').innerHTML = `<div class="grid grid-cols-3 gap-2">
+        ${tile('Days', m.logs.length)}
+        ${tile('Net profit', fmt(m.net), m.net < 0 ? 'text-rose-600' : 'text-emerald-600')}
+        ${tile('Differences', m.newFormatDays ? fmtSigned(m.dayVariance) : '—', Math.round(m.dayVariance) < 0 ? 'text-rose-600' : 'text-slate-900')}
+    </div>`;
+    $('closings-list').innerHTML = !m.logs.length
+        ? `<div class="bg-white rounded-2xl border border-slate-200 p-6 text-center text-sm text-slate-400">No closings in this month.</div>`
+        : m.logs.map(s => `
+        <button onclick="showClosure('${esc(s.id)}')" class="w-full text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 active:bg-slate-50">
+            <div class="flex items-center justify-between gap-2">
+                <b class="text-sm text-slate-900">${esc(niceDate(s.rawDate || s.id))}</b>
+                <span class="text-xs">${isNewFormat(s) ? varianceBadge(s.variance) : '<span class="text-slate-400">old format*</span>'}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 mt-1.5 text-xs text-slate-500">
+                <span>Profit <b class="text-emerald-700">${fmt(s.lipaKwaSimuCommission)}</b> · Exp <b class="text-rose-600">${fmt(s.expenses)}</b></span>
+                <span>${esc(s.submittedBy || '')} ›</span>
+            </div>
+            <div class="flex items-center justify-between mt-1 text-xs"><span class="text-slate-500">Closing total</span><b class="text-slate-900">${isNewFormat(s) ? fmt(s.closingTotal) : fmt(s.moneyPosition) + '*'}</b></div>
+        </button>`).join('');
+    $('legacy-note').classList.toggle('hidden', !hasLegacy);
+}
+
+function renderMoney(m, pending) {
+    const recent = updateRequests.filter(r => r.status !== 'PENDING' && dateOfEntry(r).startsWith(selectedMonth())).slice(0, 5);
+    $('money-requests').innerHTML = (pending.length || recent.length)
+        ? `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2"><p class="text-sm font-bold text-slate-900">Adjustment requests</p>${[...pending, ...recent].map(requestCard).join('')}</div>` : '';
+    $('money-summary').innerHTML = `<div class="grid grid-cols-2 gap-2">
+        ${tile('Withdrawals', fmt(m.withdrawals), 'text-amber-600')}
+        ${tile('Commission in', fmt(m.commissionIn), 'text-teal-700')}
+        ${tile('Capital added', fmt(m.capital), 'text-emerald-700')}
+        ${tile('Adjustments', fmtSigned(m.adjustments))}
+    </div>`;
+    $('movements-list').innerHTML = !m.moves.length
+        ? `<p class="py-4 text-center text-sm text-slate-400">Nothing recorded this month.</p>`
+        : m.moves.map(c => {
+            const type = moveType(c);
+            return `<div class="flex items-center gap-3 py-3">
+                <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">${MOVE_ICONS[type] || '•'}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}</p>
+                    <p class="text-xs text-slate-500 truncate">${esc(niceDate(dateOfEntry(c)))} · ${esc(c.target || '')}${c.note ? ' · ' + esc(c.note) : ''}</p>
+                </div>
+                <div class="text-right shrink-0">
+                    <p class="text-sm font-black ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</p>
+                    ${c.type && !c.closedIn ? `<button onclick="deleteMovement('${esc(c.id)}')" class="text-[11px] font-bold text-rose-600">Delete</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+}
+
+function renderSettings() {
+    $('accounts-list').innerHTML = accounts.map(a => {
+        const wa = !!(a.phone && a.callmebotKey);
+        return `<div class="flex items-center gap-3 py-3">
+            <button onclick="openEditUserModal('${esc(a.id)}')" class="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <span class="w-9 h-9 rounded-full ${isBoss(a) ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'} flex items-center justify-center font-black shrink-0">${esc(((a.name || '?').trim()[0] || '?').toUpperCase())}</span>
+                <span class="min-w-0"><span class="block text-sm font-bold text-slate-900 truncate">${esc(a.name)}</span>
+                <span class="block text-xs text-slate-500">@${esc(a.username)} · ${esc(a.role)} · WhatsApp ${wa ? '<b class="text-emerald-600">on</b>' : 'off'}</span></span>
+            </button>
+            ${a.id !== currentUser.id ? `<button onclick="deleteAccount('${esc(a.id)}')" class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 font-bold shrink-0" aria-label="Delete">✕</button>` : '<span class="text-[10px] text-slate-400 shrink-0">you</span>'}
+        </div>`;
     }).join('');
+    $('networks-list').innerHTML = sortedNetworks().map(n => `
+        <div class="flex items-center gap-3 py-3">
+            <button onclick="openNetworkModal('${esc(n.id)}')" class="flex-1 min-w-0 text-left">
+                <span class="block text-sm font-bold text-slate-900">${esc(n.name)} <span class="text-slate-400 font-semibold text-xs">${esc(n.code)}</span></span>
+                <span class="block text-xs text-slate-500">Balance ${fmt(n.closingFloat)} · Min ${fmt(n.minFloat)}</span>
+            </button>
+            <button onclick="deleteNetwork('${esc(n.id)}')" class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 font-bold shrink-0" aria-label="Delete">✕</button>
+        </div>`).join('');
 }
 
 function showClosure(id) {
@@ -1193,6 +1264,9 @@ function showClosure(id) {
         if ((s.expenseItems || []).length) html += `<div><b>Expenses</b>` + s.expenseItems.map(e => `<div class="flex justify-between"><span>${esc(e.note)}</span><span>${fmt(e.amount)}</span></div>`).join('') + `</div>`;
     } else {
         html += `<p>Volume ${fmt(s.volume)} · Lipa kwa Simu ${fmt(s.lipaKwaSimuCommission)} · Expenses ${fmt(s.expenses)} · Money position (old formula) ${fmt(s.moneyPosition)}</p>`;
+    }
+    if (isNewFormat(s) && lastClosure() && lastClosure().id === s.id) {
+        html += `<button onclick="closeModal('modal-closure'); reopenClosure('${esc(s.id)}')" class="w-full h-11 mt-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-xl text-sm">Reopen this day to correct it</button>`;
     }
     $('closure-body').innerHTML = html;
     openModal('modal-closure');
@@ -1223,7 +1297,8 @@ async function reopenClosure(id) {
         await withTimeout(batch.commit(), 10000);
         $('session-date-picker').value = s.rawDate;
         agentSuccessDate = null;
-        toast(`${s.rawDate} reopened. Switch to Agent view to correct and lock it.`);
+        toast(`${s.rawDate} reopened — correct it here and lock again.`);
+        showTab('close');
     } catch (e) { toast('Could not reopen: ' + (e.code || e.message), 'error'); }
 }
 
@@ -1478,7 +1553,7 @@ function monthRows(m) {
 }
 
 function generateMonthlyPDF() {
-    const ym = $('owner-month').value || localDate().slice(0, 7);
+    const ym = selectedMonth();
     const m = monthStats(ym);
     const rows = monthRows(m);
     const { jsPDF } = window.jspdf;
@@ -1516,7 +1591,7 @@ function generateMonthlyPDF() {
 }
 
 function exportCSV() {
-    const ym = $('owner-month').value || localDate().slice(0, 7);
+    const ym = selectedMonth();
     const m = monthStats(ym);
     const q = v => `"${String(v).replace(/"/g, '""')}"`;
     const lines = [['Date', 'Submitted by', 'Volume', 'All fees (info)', 'Lipa kwa Simu (profit)', 'Expenses', 'Closing total', 'Old formula', 'Difference', 'Explanation'].map(q).join(',')];
@@ -1535,6 +1610,15 @@ function exportCSV() {
 // ===================================================================
 // ASSISTANT (rule-based, calculated from your records)
 // ===================================================================
+function askFromHome(q) {
+    const input = $('home-ask');
+    q = q || input.value.trim();
+    if (!q) return;
+    input.value = '';
+    $('modal-ai-assistant').classList.remove('hidden');
+    $('ai-input-query').value = q;
+    sendAiQuery();
+}
 function toggleAiModal() { $('modal-ai-assistant').classList.toggle('hidden'); }
 function mdToHtml(text) { return esc(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>'); }
 
