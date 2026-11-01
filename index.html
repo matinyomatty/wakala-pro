@@ -11,7 +11,7 @@
     <title>Wakala Pro</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -346,10 +346,27 @@
                     <input type="number" inputmode="numeric" id="mv-amount" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs font-bold mt-0.5"></div>
                 <div><label class="text-[10px] font-bold text-slate-600 uppercase">Note</label>
                     <input type="text" id="mv-note" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs mt-0.5"></div>
+                <div id="mv-month-wrap" class="hidden"><label class="text-[10px] font-bold text-slate-600 uppercase">Commission for which month?</label>
+                    <input type="month" id="mv-month" class="w-full h-11 p-2.5 border border-teal-300 bg-teal-50/40 rounded-xl font-bold mt-0.5">
+                    <p class="text-[10px] text-slate-500 mt-0.5">Counts as profit for this month, even if it arrives later.</p></div>
             </div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeModal('modal-movement')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
                 <button onclick="saveMovement()" class="h-10 px-3.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE COMMISSION MONTH -->
+    <div id="modal-commission-month" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+            <h3 class="font-bold text-slate-900 text-sm">Which month is this commission for?</h3>
+            <p id="cm-info" class="text-xs text-slate-500"></p>
+            <input type="hidden" id="cm-id">
+            <input type="month" id="cm-month" class="w-full h-11 p-2.5 border border-teal-300 rounded-xl font-bold">
+            <div class="flex justify-end gap-2 border-t pt-2.5">
+                <button onclick="closeModal('modal-commission-month')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveCommissionMonth()" class="h-10 px-3.5 bg-teal-700 text-white font-bold rounded-xl text-xs">Save</button>
             </div>
         </div>
     </div>
@@ -586,6 +603,10 @@ function toast(msg, kind) {
 // Fire-and-forget write: with offline mode the change is applied on the phone
 // immediately; we only surface real errors (e.g. permission denied).
 function write(promise) { promise.catch(err => toast(t('saveFailed') + (err.code || err.message), 'error')); }
+// Month an entry belongs to: commission counts for the month it was earned.
+function monthOfEntry(c) { return (moveType(c) === 'COMMISSION_IN' && c.forMonth) ? c.forMonth : dateOfEntry(c).slice(0, 7); }
+function prevMonth(ym) { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 2, 15); return localDate(d).slice(0, 7); }
+function monthLabel(ym) { return new Date(ym + '-15T12:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }); }
 function dateOfEntry(c) {
     if (c.date) return c.date;
     if (c.createdAt && typeof c.createdAt.toDate === 'function') return localDate(c.createdAt.toDate());
@@ -651,7 +672,7 @@ function overallRec() {
 }
 function monthStats(ym) {
     const logs = historicalLogs.filter(l => (l.rawDate || '').startsWith(ym));
-    const moves = capitalLedger.filter(c => dateOfEntry(c).startsWith(ym));
+    const moves = capitalLedger.filter(c => monthOfEntry(c) === ym);
     const byType = type => sum(moves.filter(c => moveType(c) === type), c => c.amount);
     const chain = logs.filter(l => dayProfitOf(l) !== null).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
     const legacy = logs.filter(l => !isNewFormat(l));
@@ -1312,11 +1333,12 @@ function renderMoney(m, pending) {
             return `<div class="flex items-center gap-3 py-3">
                 <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">${MOVE_ICONS[type] || '•'}</span>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}</p>
+                    <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}${type === 'COMMISSION_IN' ? ` <span class="text-teal-700">· for ${esc(monthLabel(monthOfEntry(c)))}</span>` : ''}</p>
                     <p class="text-xs text-slate-500 truncate">${esc(niceDate(dateOfEntry(c)))} · ${esc(c.target === OUTSIDE ? 'outside balances' : (c.target || ''))}${c.note ? ' · ' + esc(c.note) : ''}</p>
                 </div>
                 <div class="text-right shrink-0">
                     <p class="text-sm font-black ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</p>
+                    ${type === 'COMMISSION_IN' ? `<button onclick="changeCommissionMonth('${esc(c.id)}')" class="text-[11px] font-bold text-blue-600 block ml-auto">Change month</button>` : ''}
                     ${c.type && !c.closedIn ? `<button onclick="deleteMovement('${esc(c.id)}')" class="text-[11px] font-bold text-rose-600">Delete</button>` : ''}
                 </div>
             </div>`;
@@ -1415,6 +1437,11 @@ function openMovementModal(type) {
     populateDropdowns();
     if (type === 'COMMISSION_IN') $('mv-target').insertAdjacentHTML('afterbegin', `<option value="${OUTSIDE}">Not in these balances (bank / elsewhere)</option>`);
     $('mv-target').value = type === 'COMMISSION_IN' ? OUTSIDE : DRAWER_CODE;
+    // Commission is paid after the month ends: early in a month, default to last month.
+    const thisMonth = localDate().slice(0, 7);
+    $('mv-month').value = new Date().getDate() <= 20 ? prevMonth(thisMonth) : thisMonth;
+    $('mv-month').max = thisMonth;
+    $('mv-month-wrap').classList.toggle('hidden', type !== 'COMMISSION_IN');
     openModal('modal-movement');
 }
 
@@ -1427,13 +1454,32 @@ async function saveMovement() {
     const signed = MOVE_TYPES[type].sign * amt;
     const net = networks.find(n => n.code === target);
     const batch = db.batch();
-    batch.set(db.collection('capitalLedger').doc(), { type, target, amount: signed, note, date: localDate(), by: currentUser.name || '', createdAt: new Date() });
+    const entry = { type, target, amount: signed, note, date: localDate(), by: currentUser.name || '', createdAt: new Date() };
+    if (type === 'COMMISSION_IN') entry.forMonth = $('mv-month').value || localDate().slice(0, 7);
+    batch.set(db.collection('capitalLedger').doc(), entry);
     if (net) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(signed) });
     write(batch.commit());
     closeModal('modal-movement');
-    toast(`${MOVE_TYPES[type].label}: ${fmt(amt)} saved`);
+    toast(`${MOVE_TYPES[type].label}: ${fmt(amt)} saved${type === 'COMMISSION_IN' ? ' for ' + monthLabel($('mv-month').value) : ''}`);
 }
 
+function changeCommissionMonth(id) {
+    const c = capitalLedger.find(x => x.id === id);
+    if (!c) return;
+    $('cm-id').value = id;
+    $('cm-month').value = monthOfEntry(c);
+    $('cm-month').max = localDate().slice(0, 7);
+    $('cm-info').innerText = `${fmt(c.amount)} received ${niceDate(dateOfEntry(c))}${c.note ? ' · ' + c.note : ''}`;
+    openModal('modal-commission-month');
+}
+function saveCommissionMonth() {
+    const id = $('cm-id').value, ym = $('cm-month').value;
+    if (!id || !ym) return;
+    write(db.collection('capitalLedger').doc(id).update({ forMonth: ym }));
+    closeModal('modal-commission-month');
+    setMonth(ym);
+    toast('Commission now counts for ' + monthLabel(ym));
+}
 function deleteMovement(id) {
     const c = capitalLedger.find(x => x.id === id);
     if (!c || !c.type || c.closedIn) return;
@@ -1696,7 +1742,7 @@ function generateMonthlyPDF() {
         doc.autoTable({
             startY: doc.lastAutoTable.finalY + 6, theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 116, 139] },
             head: [['Date', 'Type', 'Where', 'Amount', 'Note', 'By']],
-            body: m.moves.map(c => [dateOfEntry(c), (MOVE_TYPES[moveType(c)] || {}).label || moveType(c), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), n(num(c.amount)), c.note || '', c.by || '']),
+            body: m.moves.map(c => [dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'COMMISSION_IN' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), n(num(c.amount)), c.note || '', c.by || '']),
             columnStyles: { 3: { halign: 'right' } }
         });
     }
@@ -1719,7 +1765,7 @@ function exportCSV() {
     Object.values(m.perNetwork).forEach(x => lines.push([x.name, x.dep, x.wd, x.dep + x.wd].map(q).join(',')));
     lines.push('');
     lines.push(['Date', 'Type', 'Where', 'Amount', 'Note', 'By'].map(q).join(','));
-    m.moves.forEach(c => lines.push([dateOfEntry(c), (MOVE_TYPES[moveType(c)] || {}).label || moveType(c), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), num(c.amount), c.note || '', c.by || ''].map(q).join(',')));
+    m.moves.forEach(c => lines.push([dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'COMMISSION_IN' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), num(c.amount), c.note || '', c.by || ''].map(q).join(',')));
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1763,6 +1809,7 @@ function movesForRange(key) {
     const today = localDate();
     const inRange = d => key === 'today' ? d === today : key === 'yesterday' ? d === shiftDate(today, -1) : key === 'week' ? d >= shiftDate(today, -6)
         : key === 'month' ? d.startsWith(today.slice(0, 7)) : key === 'lastmonth' ? d.startsWith(localDate(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15)).slice(0, 7)) : true;
+    if (key === 'month' || key === 'lastmonth') return capitalLedger.filter(c => inRange(monthOfEntry(c) + '-01'));
     return capitalLedger.filter(c => inRange(dateOfEntry(c)));
 }
 

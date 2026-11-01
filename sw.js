@@ -1,8 +1,8 @@
 // Wakala Pro service worker: lets the app open without internet.
 // The app page itself is always fetched fresh when online (so updates show
 // immediately); libraries are cached after the first visit.
-const CACHE = 'wakala-pro-v2';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'wakala-pro-v3';
+const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 const LIB_HOSTS = /(^|\.)cdn\.tailwindcss\.com$|(^|\.)gstatic\.com$|(^|\.)cdnjs\.cloudflare\.com$/;
 
 self.addEventListener('install', e => {
