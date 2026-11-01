@@ -179,10 +179,11 @@
             <!-- ===== HOME ===== -->
             <section id="tab-home" class="space-y-3 hidden">
                 <div id="home-today" class="bg-slate-900 text-white rounded-2xl p-4 shadow"></div>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button onclick="openMovementModal('EXPENSE')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-rose-700 leading-tight">🧾<br>Expense</button>
                     <button onclick="openMovementModal('WITHDRAWAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-amber-700 leading-tight">🏧<br>Withdrawal</button>
                     <button onclick="openMovementModal('CAPITAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-emerald-700 leading-tight">💰<br>Add Capital</button>
-                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission In</button>
+                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission</button>
                 </div>
                 <div id="home-alerts"></div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
@@ -228,10 +229,11 @@
 
             <!-- ===== MONEY ===== -->
             <section id="tab-money" class="space-y-3 hidden">
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button onclick="openMovementModal('EXPENSE')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-rose-700 leading-tight">🧾<br>Expense</button>
                     <button onclick="openMovementModal('WITHDRAWAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-amber-700 leading-tight">🏧<br>Withdrawal</button>
                     <button onclick="openMovementModal('CAPITAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-emerald-700 leading-tight">💰<br>Add Capital</button>
-                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission In</button>
+                    <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission</button>
                 </div>
                 <div id="money-requests"></div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2">
@@ -348,15 +350,17 @@
             <p class="text-[10px] text-slate-500" id="mv-help"></p>
             <input type="hidden" id="mv-type">
             <div class="space-y-2.5">
-                <div><label class="text-[10px] font-bold text-slate-600 uppercase">Network / Drawer</label>
+                <div id="mv-cat-wrap" class="hidden"><label class="text-[10px] font-bold text-slate-600 uppercase">Type of expense</label>
+                    <select id="mv-cat" class="w-full h-11 p-2.5 border border-rose-300 rounded-xl font-semibold mt-0.5 bg-rose-50/40"></select></div>
+                <div><label class="text-[10px] font-bold text-slate-600 uppercase" id="mv-target-label">Network / Drawer</label>
                     <select id="mv-target" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5 bg-slate-50"></select></div>
                 <div><label class="text-[10px] font-bold text-slate-600 uppercase">Amount (TZS)</label>
                     <input type="number" inputmode="numeric" id="mv-amount" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs font-bold mt-0.5"></div>
                 <div><label class="text-[10px] font-bold text-slate-600 uppercase">Note</label>
                     <input type="text" id="mv-note" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs mt-0.5"></div>
-                <div id="mv-month-wrap" class="hidden"><label class="text-[10px] font-bold text-slate-600 uppercase">Commission for which month?</label>
+                <div id="mv-month-wrap" class="hidden"><label class="text-[10px] font-bold text-slate-600 uppercase" id="mv-month-label">Commission for which month?</label>
                     <input type="month" id="mv-month" class="w-full h-11 p-2.5 border border-teal-300 bg-teal-50/40 rounded-xl font-bold mt-0.5">
-                    <p class="text-[10px] text-slate-500 mt-0.5">Counts as profit for this month, even if it arrives later.</p></div>
+                    <p class="text-[10px] text-slate-500 mt-0.5" id="mv-month-help">Counts as profit for this month, even if it arrives later.</p></div>
             </div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeModal('modal-movement')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
@@ -368,7 +372,7 @@
     <!-- CHANGE COMMISSION MONTH -->
     <div id="modal-commission-month" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
         <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
-            <h3 class="font-bold text-slate-900 text-sm">Which month is this commission for?</h3>
+            <h3 class="font-bold text-slate-900 text-sm">Which month does this belong to?</h3>
             <p id="cm-info" class="text-xs text-slate-500"></p>
             <input type="hidden" id="cm-id">
             <input type="month" id="cm-month" class="w-full h-11 p-2.5 border border-teal-300 rounded-xl font-bold">
@@ -489,7 +493,8 @@ const MOVE_TYPES = {
     CAPITAL:       { label: 'Capital added',        sign: +1, help: 'Money you put into the business. It is added to the chosen balance and is NOT counted as profit.' },
     WITHDRAWAL:    { label: 'Owner withdrawal',     sign: -1, help: 'Money you take out of the business (cash home, personal use, profit taken). It is removed from the chosen balance and is NOT counted as a loss.' },
     COMMISSION_IN: { label: 'Commission received',  sign: +1, help: 'Month-end commission from Vodacom, Yas, Airtel, Halotel, etc. If it was paid into one of the floats, choose that float. If it went to a bank or anywhere not tracked here, choose "Not in these balances". Either way it is added to the month\'s profit.' },
-    ADJUSTMENT:    { label: 'Approved adjustment',  sign: +1, help: '' }
+    ADJUSTMENT:    { label: 'Approved adjustment',  sign: +1, help: '' },
+    EXPENSE:       { label: 'Business expense',     sign: -1, help: 'Salaries, rent, bills and other business costs. It is taken off the month\'s profit (unlike an owner withdrawal). If you paid from the drawer or a float, choose it so the balance stays correct; if you paid from your pocket or bank, choose that.' }
 };
 
 // ===================================================================
@@ -612,7 +617,7 @@ function toast(msg, kind) {
 // immediately; we only surface real errors (e.g. permission denied).
 function write(promise) { promise.catch(err => toast(t('saveFailed') + (err.code || err.message), 'error')); }
 // Month an entry belongs to: commission counts for the month it was earned.
-function monthOfEntry(c) { return (moveType(c) === 'COMMISSION_IN' && c.forMonth) ? c.forMonth : dateOfEntry(c).slice(0, 7); }
+function monthOfEntry(c) { return ((moveType(c) === 'COMMISSION_IN' || moveType(c) === 'EXPENSE') && c.forMonth) ? c.forMonth : dateOfEntry(c).slice(0, 7); }
 function prevMonth(ym) { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 2, 15); return localDate(d).slice(0, 7); }
 function monthLabel(ym) { return new Date(ym + '-15T12:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }); }
 function dateOfEntry(c) {
@@ -687,9 +692,15 @@ function monthStats(ym) {
     const dailyProfit = sum(chain, dayProfitOf);
     const legacyProfit = sum(legacy, legacyProfitOf);
     const commissionIn = byType('COMMISSION_IN');
+    const ownerExpenses = -byType('EXPENSE');
+    const expenseByCat = {};
+    moves.filter(c => moveType(c) === 'EXPENSE').forEach(c => { const k = c.category || 'Other'; expenseByCat[k] = (expenseByCat[k] || 0) - num(c.amount); });
+    const agentExp = sum(logs, l => l.expenses);
+    if (agentExp) expenseByCat['Shop expenses (agents)'] = agentExp;
     return {
         logs, moves, chain, legacyDays: legacy.length, legacyProfit, dailyProfit, commissionIn,
-        totalProfit: dailyProfit + legacyProfit + commissionIn,
+        totalProfit: dailyProfit + legacyProfit + commissionIn - ownerExpenses,
+        ownerExpenses, expenseByCat, allExpenses: ownerExpenses + agentExp,
         opening: chain.length ? num(chain[0].openingTotal) : null,
         closing: chain.length ? num(chain[chain.length - 1].closingTotal) : null,
         chainMoves: sum(chain, l => l.movementsTotal),
@@ -1193,7 +1204,8 @@ function tile(label, value, cls) {
 function line(label, value) {
     return `<div class="flex justify-between gap-2 py-1.5 text-sm"><span class="text-slate-600">${label}</span><span class="font-bold text-right">${value}</span></div>`;
 }
-const MOVE_ICONS = { CAPITAL: '💰', WITHDRAWAL: '🏧', COMMISSION_IN: '📥', ADJUSTMENT: '⚖️' };
+const MOVE_ICONS = { CAPITAL: '💰', WITHDRAWAL: '🏧', COMMISSION_IN: '📥', ADJUSTMENT: '⚖️', EXPENSE: '🧾' };
+const EXPENSE_CATEGORIES = ['Salaries & wages', 'Rent', 'Electricity & water', 'Airtime & internet', 'Transport', 'Licences & fees', 'Repairs & equipment', 'Security', 'Other'];
 
 function requestCard(r) {
     const pending = r.status === 'PENDING';
@@ -1263,7 +1275,7 @@ function renderHome(m, o, pending) {
         <div class="bg-emerald-600 text-white rounded-xl p-3.5">
             <p class="text-[11px] font-bold uppercase opacity-80">Total profit</p>
             <p class="text-2xl font-black">${fmt(m.totalProfit)}</p>
-            <p class="text-[11px] opacity-90">Daily profit ${fmt(m.dailyProfit + m.legacyProfit)} + commission ${fmt(m.commissionIn)}</p>
+            <p class="text-[11px] opacity-90">Daily ${fmt(m.dailyProfit + m.legacyProfit)} + commission ${fmt(m.commissionIn)} − expenses ${fmt(m.ownerExpenses)}</p>
         </div>
         <div class="grid grid-cols-2 gap-2 mt-2">
             ${tile('Daily profit', fmt(m.dailyProfit + m.legacyProfit), (m.dailyProfit + m.legacyProfit) < 0 ? 'text-rose-600' : 'text-emerald-600')}
@@ -1274,7 +1286,8 @@ function renderHome(m, o, pending) {
         <div class="divide-y divide-slate-100 mt-1">
             ${line('Days closed', m.logs.length)}
             ${line('Owner withdrawals', fmt(m.withdrawals))}
-            ${line('Expenses', fmt(m.exp))}
+            ${line('Business expenses (owner)', fmt(m.ownerExpenses))}
+            ${line('Shop expenses (agents)', fmt(m.exp))}
             ${m.lossDays.length ? line('Days money went down', `<span class="text-rose-600">${m.lossDays.length}</span>`) : ''}
         </div>
         <button onclick="showTab('history')" class="w-full mt-1 text-xs font-bold text-blue-600 text-left">See how this is calculated ›</button>`;
@@ -1292,11 +1305,12 @@ function renderHistory(m) {
     if (m.chain.length) {
         calc += L('Opening total (start)', fmt(m.opening), 'text-slate-600')
             + L('Closing total (latest)', fmt(m.closing), 'text-slate-600')
-            + (Math.round(m.chainMoves) ? L('Owner money in/out', `${fmtSigned(-m.chainMoves)} <span class="font-normal text-[10px] text-slate-400">(${m.chainMoves < 0 ? 'withdrawals added back' : 'capital taken out'})</span>`, 'text-slate-600') : '')
+            + (Math.round(m.chainMoves) ? L('Owner money in/out', `${fmtSigned(-m.chainMoves)} <span class="font-normal text-[10px] text-slate-400">(${m.chainMoves < 0 ? 'withdrawals & owner expenses added back' : 'capital taken out'})</span>`, 'text-slate-600') : '')
             + L('= Daily profit (money growth)', fmt(m.dailyProfit), 'border-t border-slate-100');
     }
     if (m.legacyDays) calc += L(`Older entries (${m.legacyDays} day${m.legacyDays > 1 ? 's' : ''}, fees typed in)`, fmt(m.legacyProfit), 'text-slate-600');
     calc += L('+ Commission received', fmt(m.commissionIn), 'text-slate-600')
+        + L('− Business expenses (owner)', fmt(m.ownerExpenses), 'text-slate-600')
         + `<div class="flex justify-between gap-2 py-2 mt-1 border-t-2 border-slate-200"><span class="font-black">Total profit</span><span class="font-black text-emerald-700 text-lg">${fmt(m.totalProfit)}</span></div>`;
     const nets = Object.values(m.perNetwork).sort((a, b) => (b.dep + b.wd) - (a.dep + a.wd));
     const volBlock = `<div class="mt-3 pt-3 border-t border-slate-100">
@@ -1328,12 +1342,17 @@ function renderMoney(m, pending) {
     const recent = updateRequests.filter(r => r.status !== 'PENDING' && dateOfEntry(r).startsWith(selectedMonth())).slice(0, 5);
     $('money-requests').innerHTML = (pending.length || recent.length)
         ? `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2"><p class="text-sm font-bold text-slate-900">Adjustment requests</p>${[...pending, ...recent].map(requestCard).join('')}</div>` : '';
+    const cats = Object.entries(m.expenseByCat).sort((a, b) => b[1] - a[1]);
     $('money-summary').innerHTML = `<div class="grid grid-cols-2 gap-2">
+        ${tile('Business expenses', fmt(m.ownerExpenses), 'text-rose-600')}
         ${tile('Withdrawals', fmt(m.withdrawals), 'text-amber-600')}
         ${tile('Commission in', fmt(m.commissionIn), 'text-teal-700')}
         ${tile('Capital added', fmt(m.capital), 'text-emerald-700')}
         ${tile('Adjustments', fmtSigned(m.adjustments))}
-    </div>`;
+    </div>` + (cats.length ? `<div class="mt-3 bg-rose-50/50 border border-rose-100 rounded-xl p-3">
+        <div class="flex justify-between text-sm font-bold mb-1"><span>All expenses by type</span><span class="text-rose-700">${fmt(m.allExpenses)}</span></div>
+        ${cats.map(([k, v]) => `<div class="flex justify-between text-xs py-1"><span class="text-slate-600">${esc(k)}</span><b>${fmt(v)}</b></div>`).join('')}
+    </div>` : '');
     $('movements-list').innerHTML = !m.moves.length
         ? `<p class="py-4 text-center text-sm text-slate-400">Nothing recorded this month.</p>`
         : m.moves.map(c => {
@@ -1341,12 +1360,12 @@ function renderMoney(m, pending) {
             return `<div class="flex items-center gap-3 py-3">
                 <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">${MOVE_ICONS[type] || '•'}</span>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}${type === 'COMMISSION_IN' ? ` <span class="text-teal-700">· for ${esc(monthLabel(monthOfEntry(c)))}</span>` : ''}</p>
-                    <p class="text-xs text-slate-500 truncate">${esc(niceDate(dateOfEntry(c)))} · ${esc(c.target === OUTSIDE ? 'outside balances' : (c.target || ''))}${c.note ? ' · ' + esc(c.note) : ''}</p>
+                    <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}${type === 'EXPENSE' ? ': ' + esc(c.category || 'Other') : ''}${type === 'COMMISSION_IN' || type === 'EXPENSE' ? ` <span class="${type === 'EXPENSE' ? 'text-rose-700' : 'text-teal-700'}">· for ${esc(monthLabel(monthOfEntry(c)))}</span>` : ''}</p>
+                    <p class="text-xs text-slate-500 truncate">${esc(niceDate(dateOfEntry(c)))} · ${esc(c.target === OUTSIDE ? (type === 'EXPENSE' ? 'paid from pocket/bank' : 'outside balances') : (c.target || ''))}${c.note ? ' · ' + esc(c.note) : ''}</p>
                 </div>
                 <div class="text-right shrink-0">
                     <p class="text-sm font-black ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</p>
-                    ${type === 'COMMISSION_IN' ? `<button onclick="changeCommissionMonth('${esc(c.id)}')" class="text-[11px] font-bold text-blue-600 block ml-auto">Change month</button>` : ''}
+                    ${type === 'COMMISSION_IN' || type === 'EXPENSE' ? `<button onclick="changeCommissionMonth('${esc(c.id)}')" class="text-[11px] font-bold text-blue-600 block ml-auto">Change month</button>` : ''}
                     ${c.type && !c.closedIn ? `<button onclick="deleteMovement('${esc(c.id)}')" class="text-[11px] font-bold text-rose-600">Delete</button>` : ''}
                 </div>
             </div>`;
@@ -1444,12 +1463,19 @@ function openMovementModal(type) {
     $('mv-amount').value = ''; $('mv-note').value = '';
     populateDropdowns();
     if (type === 'COMMISSION_IN') $('mv-target').insertAdjacentHTML('afterbegin', `<option value="${OUTSIDE}">Bank / not in these balances</option>`);
+    if (type === 'EXPENSE') $('mv-target').insertAdjacentHTML('beforeend', `<option value="${OUTSIDE}">My pocket / bank (not these balances)</option>`);
     $('mv-target').value = type === 'COMMISSION_IN' ? OUTSIDE : DRAWER_CODE;
+    $('mv-target-label').innerText = type === 'EXPENSE' ? 'Paid from' : type === 'COMMISSION_IN' ? 'Received into' : 'Network / Drawer';
+    $('mv-cat').innerHTML = EXPENSE_CATEGORIES.map(c => `<option>${esc(c)}</option>`).join('');
+    $('mv-cat-wrap').classList.toggle('hidden', type !== 'EXPENSE');
     // Commission is paid after the month ends: early in a month, default to last month.
+    // Expenses default to this month (change it e.g. for last month's salaries).
     const thisMonth = localDate().slice(0, 7);
-    $('mv-month').value = new Date().getDate() <= 20 ? prevMonth(thisMonth) : thisMonth;
+    $('mv-month').value = type === 'COMMISSION_IN' && new Date().getDate() <= 20 ? prevMonth(thisMonth) : thisMonth;
     $('mv-month').max = thisMonth;
-    $('mv-month-wrap').classList.toggle('hidden', type !== 'COMMISSION_IN');
+    $('mv-month-label').innerText = type === 'EXPENSE' ? 'Expense for which month?' : 'Commission for which month?';
+    $('mv-month-help').innerText = type === 'EXPENSE' ? 'Taken off the profit of this month (e.g. choose October for October salaries paid in November).' : 'Counts as profit for this month, even if it arrives later.';
+    $('mv-month-wrap').classList.toggle('hidden', type !== 'COMMISSION_IN' && type !== 'EXPENSE');
     openModal('modal-movement');
 }
 
@@ -1463,12 +1489,13 @@ async function saveMovement() {
     const net = networks.find(n => n.code === target);
     const batch = db.batch();
     const entry = { type, target, amount: signed, note, date: localDate(), by: currentUser.name || '', createdAt: new Date() };
-    if (type === 'COMMISSION_IN') entry.forMonth = $('mv-month').value || localDate().slice(0, 7);
+    if (type === 'COMMISSION_IN' || type === 'EXPENSE') entry.forMonth = $('mv-month').value || localDate().slice(0, 7);
+    if (type === 'EXPENSE') entry.category = $('mv-cat').value || 'Other';
     batch.set(db.collection('capitalLedger').doc(), entry);
     if (net) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(signed) });
     write(batch.commit());
     closeModal('modal-movement');
-    toast(`${MOVE_TYPES[type].label}: ${fmt(amt)} saved${type === 'COMMISSION_IN' ? ' for ' + monthLabel($('mv-month').value) : ''}`);
+    toast(`${type === 'EXPENSE' ? $('mv-cat').value : MOVE_TYPES[type].label}: ${fmt(amt)} saved${type === 'COMMISSION_IN' || type === 'EXPENSE' ? ' for ' + monthLabel($('mv-month').value) : ''}`);
 }
 
 function changeCommissionMonth(id) {
@@ -1486,7 +1513,7 @@ function saveCommissionMonth() {
     write(db.collection('capitalLedger').doc(id).update({ forMonth: ym }));
     closeModal('modal-commission-month');
     setMonth(ym);
-    toast('Commission now counts for ' + monthLabel(ym));
+    toast('Now counts for ' + monthLabel(ym));
 }
 function deleteMovement(id) {
     const c = capitalLedger.find(x => x.id === id);
@@ -1728,7 +1755,8 @@ function generateMonthlyPDF() {
     const summary = [];
     if (m.chain.length) summary.push(['Opening total (start)', n(m.opening)], ['Closing total (latest)', n(m.closing)], ['Owner money in/out (removed)', n(-m.chainMoves)], ['Daily profit (money growth)', n(m.dailyProfit)]);
     if (m.legacyDays) summary.push(['Older entries (fees typed in)', n(m.legacyProfit)]);
-    summary.push(['Commission received', n(m.commissionIn)], ['TOTAL PROFIT', n(m.totalProfit)], ['', ''],
+    summary.push(['Commission received', n(m.commissionIn)], ['Business expenses (owner)', n(-m.ownerExpenses)], ['TOTAL PROFIT', n(m.totalProfit)], ['', ''],
+        ...Object.entries(m.expenseByCat).map(([k, v]) => ['Expense: ' + k, n(v)]), ['', ''],
         ['Transaction volume', n(m.volume)], ['  Deposits', m.splitKnown ? n(m.deposits) : '—'], ['  Withdrawals', m.splitKnown ? n(m.withdrawalsTx) : '—'], ['Average volume per day', n(m.avgVolume)], ['', ''], ['Expenses (already inside daily profit)', n(m.exp)], ['Owner withdrawals', n(m.withdrawals)], ['Capital added', n(m.capital)], ['Days money went down', String(m.lossDays.length)]);
     doc.autoTable({ startY: 27, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [15, 23, 42] }, head: [['Summary', 'TZS']], body: summary, columnStyles: { 1: { halign: 'right' } }, tableWidth: 120 });
     doc.autoTable({
@@ -1750,7 +1778,7 @@ function generateMonthlyPDF() {
         doc.autoTable({
             startY: doc.lastAutoTable.finalY + 6, theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 116, 139] },
             head: [['Date', 'Type', 'Where', 'Amount', 'Note', 'By']],
-            body: m.moves.map(c => [dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'COMMISSION_IN' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), n(num(c.amount)), c.note || '', c.by || '']),
+            body: m.moves.map(c => [dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'EXPENSE' ? ': ' + (c.category || 'Other') : '') + (moveType(c) === 'COMMISSION_IN' || moveType(c) === 'EXPENSE' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), n(num(c.amount)), c.note || '', c.by || '']),
             columnStyles: { 3: { halign: 'right' } }
         });
     }
@@ -1766,6 +1794,8 @@ function exportCSV() {
     lines.push('');
     lines.push([q('Daily profit'), q(m.dailyProfit + m.legacyProfit)].join(','));
     lines.push([q('Commission received'), q(m.commissionIn)].join(','));
+    lines.push([q('Business expenses (owner)'), q(-m.ownerExpenses)].join(','));
+    Object.entries(m.expenseByCat).forEach(([k, v]) => lines.push([q('Expense: ' + k), q(v)].join(',')));
     lines.push([q('Total profit'), q(m.totalProfit)].join(','));
     lines.push([q('Transaction volume'), q(m.volume)].join(','));
     lines.push('');
@@ -1773,7 +1803,7 @@ function exportCSV() {
     Object.values(m.perNetwork).forEach(x => lines.push([x.name, x.dep, x.wd, x.dep + x.wd].map(q).join(',')));
     lines.push('');
     lines.push(['Date', 'Type', 'Where', 'Amount', 'Note', 'By'].map(q).join(','));
-    m.moves.forEach(c => lines.push([dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'COMMISSION_IN' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), num(c.amount), c.note || '', c.by || ''].map(q).join(',')));
+    m.moves.forEach(c => lines.push([dateOfEntry(c), ((MOVE_TYPES[moveType(c)] || {}).label || moveType(c)) + (moveType(c) === 'EXPENSE' ? ': ' + (c.category || 'Other') : '') + (moveType(c) === 'COMMISSION_IN' || moveType(c) === 'EXPENSE' ? ' (for ' + monthLabel(monthOfEntry(c)) + ')' : ''), c.target === OUTSIDE ? 'Outside balances' : (c.target || ''), num(c.amount), c.note || '', c.by || ''].map(q).join(',')));
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1828,6 +1858,7 @@ function buildAiReply(raw) {
     const moves = movesForRange(range.key);
     const daily = sum(logs, l => isNewFormat(l) ? dayProfitOf(l) : legacyProfitOf(l));
     const commission = sum(moves.filter(c => moveType(c) === 'COMMISSION_IN'), c => c.amount);
+    const ownerExp = -sum(moves.filter(c => moveType(c) === 'EXPENSE'), c => c.amount);
     const exp = sum(logs, l => l.expenses);
     const low = networks.filter(n => num(n.closingFloat) < num(n.minFloat));
     const net = networks.find(n => q.includes((n.code || '').toLowerCase()) || q.includes((n.name || '').toLowerCase()) || q.includes((n.name || '').toLowerCase().replace(/[^a-z]/g, '')));
@@ -1850,9 +1881,12 @@ function buildAiReply(raw) {
         const c = moves.filter(x => moveType(x) === 'COMMISSION_IN');
         return `📥 **Commission received — ${range.label}:** ${fmt(commission)}` + (c.length ? '\n' + c.map(x => `• ${dateOfEntry(x)}: ${fmt(x.amount)}${x.note ? ' — ' + x.note : ''}`).join('\n') : '');
     }
-    if (/expense|spend|cost|matumizi/.test(q)) {
-        const items = logs.flatMap(l => l.expenseItems || []).sort((a, b) => num(b.amount) - num(a.amount)).slice(0, 5);
-        return `💸 **Expenses — ${range.label}:** ${fmt(exp)} over ${logs.length} closing(s). (Already taken out of daily profit.)` + (items.length ? `\nLargest:\n` + items.map(e => `• ${e.note}: ${fmt(e.amount)}`).join('\n') : '');
+    if (/expense|spend|cost|matumizi|salar|rent|bill/.test(q)) {
+        const own = moves.filter(c => moveType(c) === 'EXPENSE');
+        const byCat = {}; own.forEach(c => { const k = c.category || 'Other'; byCat[k] = (byCat[k] || 0) - num(c.amount); });
+        if (exp) byCat['Shop expenses (agents)'] = exp;
+        const total = sum(Object.values(byCat), v => v);
+        return `💸 **Expenses — ${range.label}: ${fmt(total)}**\n` + (Object.keys(byCat).length ? Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `• ${k}: ${fmt(v)}`).join('\n') : '• None recorded');
     }
     if (/best day|top day|highest|worst day|lowest/.test(q)) {
         if (!scored.length) return 'No closings with profit in that period yet.';
@@ -1889,7 +1923,7 @@ function buildAiReply(raw) {
         return '💡 **Suggestions:**\n' + (tips.length ? tips.join('\n') : '• Everything looks healthy.');
     }
     if (/profit|faida|earn|make|\bnet\b/.test(q)) {
-        return `📊 **Profit — ${range.label}: ${fmt(daily + commission)}**\n• Daily profit (money growth): ${fmt(daily)} over ${logs.length} closing(s)\n• Commission received: ${fmt(commission)}`;
+        return `📊 **Profit — ${range.label}: ${fmt(daily + commission - ownerExp)}**\n• Daily profit (money growth): ${fmt(daily)} over ${logs.length} closing(s)\n• Commission received: ${fmt(commission)}\n• Business expenses: −${fmt(ownerExp)}`;
     }
     if (/position|balance|float|salio|total/.test(q)) return `💰 **Total money now:** ${fmt(sum(networks, n => n.closingFloat))} across ${networks.length} balances.` + (low.length ? `\n⚠️ ${low.length} below minimum.` : '');
     return `💡 **Summary — ${range.label}:**\n• Profit: ${fmt(daily + commission)} (daily ${fmt(daily)} + commission ${fmt(commission)})\n• Closings: ${logs.length}\n• Total money now: ${fmt(sum(networks, n => n.closingFloat))}` + (low.length ? `\n⚠️ ${low.length} network(s) need a top-up.` : '');
