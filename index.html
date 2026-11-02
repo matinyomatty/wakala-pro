@@ -369,6 +369,30 @@
         </div>
     </div>
 
+    <!-- EDIT A CLOSED DAY -->
+    <div id="modal-edit-day" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto space-y-3 shadow-2xl">
+            <div class="flex justify-between items-center"><h3 class="font-bold text-slate-900 text-sm" id="ed-title">Edit day</h3><button onclick="closeModal('modal-edit-day')" class="text-slate-400 font-bold px-2">✕</button></div>
+            <p class="text-[11px] text-slate-500">Correct any entry, then save. The next day's opening will update to match.</p>
+            <div id="ed-networks" class="space-y-2"></div>
+            <div class="border border-slate-200 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center"><b class="text-sm">Expenses</b><button onclick="edAddExpense()" class="text-xs font-bold text-blue-600">+ Add</button></div>
+                <div id="ed-expenses" class="space-y-1.5"></div>
+                <div id="ed-moves"></div>
+            </div>
+            <div id="ed-summary" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm space-y-1"></div>
+            <div><label class="text-[10px] font-bold text-slate-600 uppercase">Explanation for the day (if money went down)</label>
+                <input type="text" id="ed-note" class="w-full h-11 px-2.5 border border-slate-300 rounded-xl mt-0.5"></div>
+            <div><label class="text-[10px] font-bold text-rose-700 uppercase">Reason for this correction (required)</label>
+                <input type="text" id="ed-reason" placeholder="e.g. M-Pesa withdrawals were typed wrong" class="w-full h-11 px-2.5 border border-rose-300 rounded-xl mt-0.5"></div>
+            <div id="ed-error" class="hidden p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold text-center"></div>
+            <div class="flex justify-end gap-2 border-t pt-2.5">
+                <button onclick="closeModal('modal-edit-day')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveEditedDay()" class="h-10 px-4 bg-blue-600 text-white font-bold rounded-xl text-xs">Save correction</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CHANGE COMMISSION MONTH -->
     <div id="modal-commission-month" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
         <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
@@ -1420,12 +1444,131 @@ function showClosure(id) {
     } else {
         html += `<p class="text-sm">Older entry. Fees typed in: ${fmt(s.lipaKwaSimuCommission)} · Expenses ${fmt(s.expenses)} · Money position (old formula) ${fmt(s.moneyPosition)}</p>`;
     }
+    if ((s.editHistory || []).length) {
+        html += `<p class="font-bold text-sm mt-3">Corrections</p>` + s.editHistory.slice().reverse().map(h => `<div class="text-xs py-1.5 border-b border-slate-100"><b>${esc(h.by)}</b> · ${esc(niceDate(String(h.at).slice(0, 10)))}<br>${esc(h.reason)}<br><span class="text-slate-500">Before: closing ${fmt(h.before.closingTotal)}, volume ${fmt(h.before.volume)}, expenses ${fmt(h.before.expenses)}</span></div>`).join('');
+    }
+    if (isNewFormat(s) && isBoss(currentUser)) {
+        html += `<button onclick="openEditDay('${esc(s.id)}')" class="w-full h-11 mt-3 bg-blue-600 text-white font-bold rounded-xl text-sm">✏️ Edit all entries of this day</button>`;
+    } else if (!isNewFormat(s)) {
+        html += `<p class="text-[11px] text-slate-400 mt-3">Older entries can't be edited.</p>`;
+    }
     if (isNewFormat(s) && lastClosure() && lastClosure().id === s.id && isBoss(currentUser)) {
-        html += `<button onclick="closeModal('modal-closure'); reopenClosure('${esc(s.id)}')" class="w-full h-11 mt-3 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-xl text-sm">Reopen this day to correct it</button>`;
+        html += `<button onclick="closeModal('modal-closure'); reopenClosure('${esc(s.id)}')" class="w-full h-11 mt-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-xl text-sm">Send back to Close Day (agent redoes it)</button>`;
     }
     $('closure-body').innerHTML = html;
     openModal('modal-closure');
 }
+// ---------- Edit a closed day (Owner/Admin) ----------
+// Opens every entry of a closed day — each network's deposits, withdrawals and
+// counted balance, the expense list and the explanation — for correction. The
+// next day's opening is updated so later profits stay right, and every change
+// is recorded in the day's edit history.
+let editingDayId = null;
+function openEditDay(id) {
+    const s = historicalLogs.find(l => l.id === id);
+    if (!s || !isNewFormat(s) || !isBoss(currentUser)) return;
+    editingDayId = id;
+    $('ed-title').innerText = 'Edit ' + niceDate(s.rawDate);
+    const nets = s.networks || {};
+    const codes = Object.keys(nets).sort((a, b) => a === DRAWER_CODE ? -1 : b === DRAWER_CODE ? 1 : a.localeCompare(b));
+    const inp = (code, key, val, big) => `<input type="number" inputmode="numeric" data-code="${esc(code)}" data-key="${key}" value="${num(val)}" oninput="edRecalc()" onfocus="this.select()"
+        class="w-full ${big ? 'h-11 border-emerald-300 bg-emerald-50/40' : 'h-10 border-slate-300'} px-2.5 border rounded-xl font-bold mt-0.5">`;
+    $('ed-networks').innerHTML = codes.map(code => { const n = nets[code]; return `
+        <div class="border border-slate-200 rounded-xl p-3 space-y-2">
+            <div class="flex justify-between text-sm"><b>${esc(n.name || code)}</b><span class="text-[11px] text-slate-500">Opening ${n.opening === null || n.opening === undefined ? '—' : fmt(n.opening)}</span></div>
+            ${code !== DRAWER_CODE ? `<div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[10px] font-bold text-slate-500">Deposits</label>${inp(code, 'deposits', n.deposits)}</div>
+                <div><label class="text-[10px] font-bold text-slate-500">Withdrawals</label>${inp(code, 'withdrawals', n.withdrawals)}</div></div>` : ''}
+            <div><label class="text-[10px] font-bold text-slate-600">Closing balance (counted)</label>${inp(code, 'closing', n.closing, true)}</div>
+        </div>`; }).join('');
+    $('ed-expenses').innerHTML = '';
+    (s.expenseItems || []).forEach(e => edAddExpense(e.note, e.amount));
+    const moves = capitalLedger.filter(c => c.closedIn === s.rawDate && inBalances(c));
+    $('ed-moves').innerHTML = moves.length ? `<p class="text-[11px] font-bold text-slate-500 uppercase mt-1">Owner money in/out included (change these in Money)</p>` +
+        moves.map(c => `<div class="flex justify-between text-xs py-1"><span>${esc((MOVE_TYPES[moveType(c)] || {}).label || '')}${c.category ? ': ' + esc(c.category) : ''} · ${esc(c.target)}</span><b>${fmtSigned(c.amount)}</b></div>`).join('') : '';
+    $('ed-note').value = s.varianceNote || '';
+    $('ed-reason').value = '';
+    $('ed-error').classList.add('hidden');
+    edRecalc();
+    closeModal('modal-closure');
+    openModal('modal-edit-day');
+}
+function edAddExpense(note, amount) {
+    $('ed-expenses').insertAdjacentHTML('beforeend', `<div class="ed-exp grid grid-cols-12 gap-1.5 items-center">
+        <input type="text" value="${esc(note || '')}" placeholder="Reason" class="ed-exp-note col-span-7 h-10 px-2.5 border border-slate-300 rounded-xl">
+        <input type="number" inputmode="numeric" value="${amount === undefined ? '' : num(amount)}" placeholder="0" oninput="edRecalc()" class="ed-exp-amt col-span-4 h-10 px-2.5 border border-slate-300 rounded-xl font-bold">
+        <button onclick="this.parentElement.remove(); edRecalc()" class="col-span-1 h-10 text-rose-600 font-bold" aria-label="Remove">✕</button></div>`);
+    edRecalc();
+}
+function edCollect() {
+    const s = historicalLogs.find(l => l.id === editingDayId);
+    const nets = JSON.parse(JSON.stringify(s.networks || {}));
+    document.querySelectorAll('#ed-networks input[data-code]').forEach(el => { nets[el.dataset.code][el.dataset.key] = num(el.value); });
+    const items = [...document.querySelectorAll('#ed-expenses .ed-exp')].map(r => ({ note: r.querySelector('.ed-exp-note').value.trim(), amount: num(r.querySelector('.ed-exp-amt').value) })).filter(e => e.note || e.amount);
+    const txCodes = Object.keys(nets).filter(c => c !== DRAWER_CODE);
+    const deposits = sum(txCodes, c => nets[c].deposits), withdrawals = sum(txCodes, c => nets[c].withdrawals);
+    const closingTotal = sum(Object.values(nets), n => n.closing);
+    const expensesTotal = sum(items, e => e.amount);
+    const hasOpen = !(s.openingTotal === null || s.openingTotal === undefined);
+    const profit = hasOpen ? closingTotal - num(s.openingTotal) - num(s.movementsTotal) : null;
+    return { s, nets, items, deposits, withdrawals, volume: deposits + withdrawals, closingTotal, expensesTotal, profit };
+}
+function edRecalc() {
+    if (!editingDayId) return;
+    const r = edCollect();
+    const L = (a, b, cls) => `<div class="flex justify-between gap-2 ${cls || ''}"><span>${a}</span><b class="text-right">${b}</b></div>`;
+    const ch = (a, b) => Math.round(a) === Math.round(b) ? '' : ` <span class="text-amber-600 font-normal text-[11px]">(was ${fmt(b)})</span>`;
+    $('ed-summary').innerHTML = L('Volume', fmt(r.volume) + ch(r.volume, r.s.volume), 'text-blue-700')
+        + L('Closing total', fmt(r.closingTotal) + ch(r.closingTotal, r.s.closingTotal))
+        + L('Expenses', fmt(r.expensesTotal) + ch(r.expensesTotal, r.s.expenses))
+        + `<div class="flex justify-between border-t pt-1.5 mt-1"><span class="font-bold">Profit</span>${profitBadge(r.profit, true)}</div>`;
+}
+async function saveEditedDay() {
+    const r = edCollect();
+    const s = r.s;
+    const reason = $('ed-reason').value.trim();
+    const err = m => { $('ed-error').innerText = m; $('ed-error').classList.remove('hidden'); };
+    if (!reason) return err('Write the reason for this correction.');
+    if (r.profit !== null && Math.round(r.profit) < 0 && !$('ed-note').value.trim()) return err('Money went down this day — add an explanation.');
+    const batch = db.batch();
+    const history = (s.editHistory || []).concat([{ at: new Date().toISOString(), by: currentUser.name || '', reason,
+        before: { closingTotal: num(s.closingTotal), volume: num(s.volume), expenses: num(s.expenses), profit: dayProfitOf(s) } }]);
+    batch.update(db.collection('dailySummaries').doc(s.id), {
+        networks: r.nets, expenseItems: r.items, expenses: r.expensesTotal,
+        totalDeposits: r.deposits, totalWithdrawals: r.withdrawals, volume: r.volume,
+        closingTotal: r.closingTotal, moneyPosition: r.closingTotal,
+        dayProfit: r.profit, feesEarned: r.profit === null ? null : r.profit + r.expensesTotal,
+        varianceNote: $('ed-note').value.trim(), editHistory: history
+    });
+    // Keep the next day consistent: its opening is this day's closing.
+    const later = historicalLogs.filter(l => (l.rawDate || '') > s.rawDate).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+    const next = later[0];
+    if (next && isNewFormat(next)) {
+        const nn = JSON.parse(JSON.stringify(next.networks || {}));
+        Object.keys(nn).forEach(c => { if (r.nets[c]) nn[c].opening = num(r.nets[c].closing); });
+        const nProfit = num(next.closingTotal) - r.closingTotal - num(next.movementsTotal);
+        batch.update(db.collection('dailySummaries').doc(next.id), { openingTotal: r.closingTotal, networks: nn, dayProfit: nProfit, feesEarned: nProfit + num(next.expenses) });
+    }
+    // If this is the latest closed day, today's starting balances change too.
+    if (!later.length) {
+        networks.forEach(n => {
+            const was = s.networks && s.networks[n.code], now = r.nets[n.code];
+            if (!was || !now) return;
+            const upd = { openingFloat: num(now.closing) };
+            const untouched = Math.round(num(n.closingFloat)) === Math.round(num(was.closing) + openMovesFor(n.code));
+            if (untouched) upd.closingFloat = num(now.closing) + openMovesFor(n.code);
+            batch.update(db.collection('networks').doc(n.id), upd);
+        });
+    }
+    try {
+        await withTimeout(batch.commit(), 10000);
+        closeModal('modal-edit-day');
+        editingDayId = null;
+        toast('Day corrected and saved.');
+        if (next && !isNewFormat(next)) toast('Saved. Note: the next day is an older entry and was not adjusted.', 'warn');
+    } catch (e) { err('Could not save: ' + (e.code || e.message)); }
+}
+
 async function reopenClosure(id) {
     const s = historicalLogs.find(l => l.id === id);
     if (!s || !isNewFormat(s) || lastClosure().id !== id) return;
