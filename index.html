@@ -394,6 +394,22 @@
         </div>
     </div>
 
+    <!-- ATTACH A PENDING ENTRY TO AN EARLIER CLOSING -->
+    <div id="modal-attach" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
+        <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
+            <h3 class="font-bold text-slate-900 text-sm">Already counted in an earlier closing</h3>
+            <p id="at-info" class="text-xs text-slate-600"></p>
+            <p class="text-[11px] text-slate-500">Use this when the money was already inside the balances counted at an earlier closing. Choose the first day it was counted. That day's profit will be corrected and it will not be counted again today.</p>
+            <input type="hidden" id="at-id">
+            <select id="at-day" class="w-full h-11 px-2.5 border border-slate-300 rounded-xl font-semibold bg-slate-50"></select>
+            <div id="at-preview" class="text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5"></div>
+            <div class="flex justify-end gap-2 border-t pt-2.5">
+                <button onclick="closeModal('modal-attach')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveAttachMove()" class="h-10 px-3.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CHANGE COMMISSION MONTH -->
     <div id="modal-commission-month" class="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 hidden z-50">
         <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full space-y-3 shadow-2xl">
@@ -1394,6 +1410,7 @@ function renderMoney(m, pending) {
         ${pend.map(c => `<div class="flex items-center justify-between gap-2 py-2 border-t border-amber-200/70">
             <div class="min-w-0"><p class="text-sm font-bold">${esc(moveLabel(c))}</p><p class="text-xs text-slate-500">${esc(niceDate(dateOfEntry(c)))} · ${esc(placeLabel(c))}${c.note ? ' · ' + esc(c.note) : ''}${c.by ? ' · ' + esc(c.by) : ''}</p></div>
             <div class="text-right shrink-0"><p class="text-sm font-black ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</p>
+            ${inBalances(c) ? `<button onclick="openAttachMove('${esc(c.id)}')" class="text-[11px] font-bold text-blue-600 block ml-auto">Already counted?</button>` : ''}
             <button onclick="deleteMovement('${esc(c.id)}')" class="text-[11px] font-bold text-rose-600">Delete</button></div></div>`).join('')}
     </div>` : '';
     $('money-requests').innerHTML = (pending.length || recent.length)
@@ -1673,6 +1690,46 @@ async function saveMovement() {
     toast(`${type === 'EXPENSE' ? $('mv-cat').value : MOVE_TYPES[type].label}: ${fmt(amt)} saved${type === 'COMMISSION_IN' || type === 'EXPENSE' ? ' for ' + monthLabel($('mv-month').value) : ''}`);
 }
 
+function openAttachMove(id) {
+    const c = capitalLedger.find(x => x.id === id);
+    if (!c) return;
+    const days = historicalLogs.filter(l => isNewFormat(l) && (l.rawDate || '') >= dateOfEntry(c)).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+    if (!days.length) { toast('No closing on or after ' + niceDate(dateOfEntry(c)) + ' to attach it to.', 'warn'); return; }
+    $('at-id').value = id;
+    $('at-info').innerText = `${moveLabel(c)} · ${placeLabel(c)} · ${fmtSigned(c.amount)} · entered ${niceDate(dateOfEntry(c))}`;
+    $('at-day').innerHTML = days.map(l => `<option value="${esc(l.id)}">${esc(niceDate(l.rawDate))} — profit shown ${fmtSigned(dayProfitOf(l))}</option>`).join('');
+    $('at-day').onchange = attachPreview;
+    attachPreview();
+    openModal('modal-attach');
+}
+function attachPreview() {
+    const c = capitalLedger.find(x => x.id === $('at-id').value);
+    const l = historicalLogs.find(x => x.id === $('at-day').value);
+    if (!c || !l) return;
+    const before = dayProfitOf(l);
+    const after = before === null ? null : before - num(c.amount);
+    $('at-preview').innerHTML = `${esc(niceDate(l.rawDate))} profit: <b>${before === null ? '—' : fmtSigned(before)}</b> → <b class="text-blue-700">${after === null ? '—' : fmtSigned(after)}</b>`;
+}
+async function saveAttachMove() {
+    const c = capitalLedger.find(x => x.id === $('at-id').value);
+    const l = historicalLogs.find(x => x.id === $('at-day').value);
+    if (!c || !l) return;
+    const moves = num(l.movementsTotal) + num(c.amount);
+    const hasOpen = !(l.openingTotal === null || l.openingTotal === undefined);
+    const profit = hasOpen ? num(l.closingTotal) - num(l.openingTotal) - moves : null;
+    const batch = db.batch();
+    batch.update(db.collection('capitalLedger').doc(c.id), { closedIn: l.rawDate });
+    batch.update(db.collection('dailySummaries').doc(l.id), {
+        movementsTotal: moves, dayProfit: profit, feesEarned: profit === null ? null : profit + num(l.expenses),
+        editHistory: (l.editHistory || []).concat([{ at: new Date().toISOString(), by: currentUser.name || '', reason: `Included ${moveLabel(c)} ${fmtSigned(c.amount)} (${placeLabel(c)}) that was already in the counted balances`,
+            before: { closingTotal: num(l.closingTotal), volume: num(l.volume), expenses: num(l.expenses), profit: dayProfitOf(l) } }])
+    });
+    try {
+        await withTimeout(batch.commit(), 10000);
+        closeModal('modal-attach');
+        toast(`Attached to ${niceDate(l.rawDate)}. It won't be counted again.`);
+    } catch (e) { toast('Could not save: ' + (e.code || e.message), 'error'); }
+}
 function changeCommissionMonth(id) {
     const c = capitalLedger.find(x => x.id === id);
     if (!c) return;
