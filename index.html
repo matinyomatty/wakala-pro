@@ -543,6 +543,8 @@ const MOVE_TYPES = {
 // ===================================================================
 const I18N = {
   en: {
+    movesChanged:'New owner money in/out was found. Check the review again, then lock.',
+    staleMove:'Entered before the last closing. If this money was already in the balances counted since then, the Owner should tap "Already counted?" in Money before locking.',
     depositsTotal:'Deposits today', withdrawalsTotal:'Withdrawals today', missingTx:'Enter deposits and withdrawals for: {n}', noTxConfirm:'No deposits or withdrawals were entered for any network. Lock the day anyway?', rvDeposits:'Total deposits', rvWithdrawals:'Total withdrawals', required:'required',
     rvProfit:"Today's profit (money growth)", rvFeesEarned:'Fees earned (before expenses)', rvExpPaid:'Expenses paid from the money', rvClosingTotal:'Closing total (counted)',
     optionalDetails:'Deposits & withdrawals (optional)', moneyDown:'Money went down', profitHint:'Profit = closing total − opening total, ignoring owner money in/out.',
@@ -573,6 +575,8 @@ const I18N = {
     reloginNeeded:'For security, log out and log back in, then try again.', saveFailed:'Could not save: ', expAdded:'Expense added'
   },
   sw: {
+    movesChanged:'Kuna pesa mpya za mmiliki zimeongezwa. Hakiki tena kisha funga.',
+    staleMove:'Iliingizwa kabla ya kufunga kwa mwisho. Kama pesa hii ilishakuwemo kwenye salio lililohesabiwa, Mmiliki abonyeze "Already counted?" kwenye Money kabla ya kufunga.',
     depositsTotal:'Kuweka leo', withdrawalsTotal:'Kutoa leo', missingTx:'Andika kuweka na kutoa kwa: {n}', noTxConfirm:'Hakuna kuweka wala kutoa kulikoandikwa kwa mtandao wowote. Funga siku hata hivyo?', rvDeposits:'Jumla ya kuweka', rvWithdrawals:'Jumla ya kutoa', required:'lazima',
     rvProfit:'Faida ya leo (ongezeko la pesa)', rvFeesEarned:'Ada zilizopatikana (kabla ya matumizi)', rvExpPaid:'Matumizi yaliyolipwa kutoka kwenye pesa', rvClosingTotal:'Jumla ya kufunga (umehesabu)',
     optionalDetails:'Kuweka na kutoa (si lazima)', moneyDown:'Pesa imepungua', profitHint:'Faida = jumla ya kufunga − jumla ya kufungua, bila kuhesabu pesa za mmiliki.',
@@ -1122,8 +1126,9 @@ function reviewRows(r) {
     const down = Math.round(r.profit) < 0;
     return vol + row(t('rvOpening'), fmt(r.opening))
         + (Math.round(r.moves) ? row(t('rvMoves'), fmtSigned(r.moves))
-            + `<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1">${openMoves().filter(inBalances).map(c =>
-                `<div class="flex justify-between gap-2 text-[11px]"><span>${esc(moveLabel(c))} · ${esc(placeLabel(c))} · ${esc(niceDate(dateOfEntry(c)))}${c.by ? ' · ' + esc(c.by) : ''}</span><b class="shrink-0">${fmtSigned(c.amount)}</b></div>`).join('')}</div>` : '')
+            + `<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1">${openMoves().filter(inBalances).map(c => {
+                const stale = lastClosure() && dateOfEntry(c) < lastClosure().rawDate;
+                return `<div class="text-[11px] ${stale ? 'text-rose-700' : ''}"><div class="flex justify-between gap-2"><span>${esc(moveLabel(c))} · ${esc(placeLabel(c))} · ${esc(niceDate(dateOfEntry(c)))}${c.by ? ' · ' + esc(c.by) : ''}</span><b class="shrink-0">${fmtSigned(c.amount)}</b></div>${stale ? `<div class="font-bold">⚠️ ${esc(t('staleMove'))}</div>` : ''}</div>`; }).join('')}</div>` : '')
         + row(t('rvClosingTotal'), fmt(r.actual))
         + '<div class="border-t border-slate-200 my-1"></div>'
         + `<div class="flex justify-between items-center gap-2 ${down ? 'bg-rose-50' : 'bg-emerald-50'} rounded-xl p-2.5"><span class="font-bold">${esc(down ? t('moneyDown') : t('rvProfit'))}</span>${profitBadge(r.profit, true)}</div>`
@@ -1184,6 +1189,23 @@ async function doLock() {
     isLocking = true;
     const btn = $('btn-confirm-lock');
     btn.disabled = true; btn.innerText = t('saving');
+    // Make sure every money in/out entry is known before locking (another phone may have
+    // added one that this phone hasn't received yet). If anything changed, show the review again.
+    if (navigator.onLine) {
+        try {
+            const fresh = await withTimeout(db.collection('capitalLedger').get({ source: 'server' }), 6000);
+            if (fresh && fresh !== TIMEOUT && fresh.docs) {
+                const before = Math.round(r.moves);
+                capitalLedger = fresh.docs.map(x => ({ id: x.id, ...x.data() }));
+                if (Math.round(dayRec().moves) !== before) {
+                    isLocking = false; btn.disabled = false; btn.innerText = t('confirmLock');
+                    closeModal('modal-confirm-lock'); setStep(3); renderAll();
+                    toast(t('movesChanged'), 'warn');
+                    return;
+                }
+            }
+        } catch (e) { /* offline or slow: continue with what this phone has */ }
+    }
 
     const snapshot = {};
     networks.forEach(n => {
@@ -1321,7 +1343,10 @@ function renderHome(m, o, pending) {
         alerts.push(`<button onclick="showClosure('${esc(lc.id)}')" class="w-full text-left p-3 rounded-xl border border-rose-200 bg-rose-50 text-sm">📉 Money went down <b class="text-rose-700">${fmtSigned(dayProfitOf(lc))}</b> on ${esc(niceDate(lc.rawDate))}<div class="text-xs text-slate-600 mt-0.5">${esc(lc.varianceNote || '')}</div></button>`);
     }
     const pendMoves = openMoves().filter(inBalances);
-    if (!lockedToday && pendMoves.length) alerts.push(`<button onclick="showTab('money')" class="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">💵 <b>${fmtSigned(sum(pendMoves, c => c.amount))}</b> owner money in/out will be counted in today's closing (${pendMoves.length} entr${pendMoves.length === 1 ? 'y' : 'ies'}) <b class="text-blue-600">— view</b></button>`);
+    const staleMoves = pendMoves.filter(c => lc && dateOfEntry(c) < lc.rawDate);
+    if (staleMoves.length) alerts.push(`<button onclick="showTab('money')" class="w-full text-left p-3 rounded-xl border border-rose-200 bg-rose-50 text-sm">⚠️ <b>${staleMoves.length} money entr${staleMoves.length === 1 ? 'y' : 'ies'} (${fmtSigned(sum(staleMoves, c => c.amount))})</b> dated before the last closing ${staleMoves.length === 1 ? 'has' : 'have'} not been counted in any closing. Check them in Money <b class="text-blue-600">— Already counted?</b></button>`);
+    const freshMoves = pendMoves.filter(c => !staleMoves.includes(c));
+    if (!lockedToday && freshMoves.length) alerts.push(`<button onclick="showTab('money')" class="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">💵 <b>${fmtSigned(sum(freshMoves, c => c.amount))}</b> owner money in/out will be counted in today's closing (${freshMoves.length} entr${freshMoves.length === 1 ? 'y' : 'ies'}) <b class="text-blue-600">— view</b></button>`);
     networks.filter(n => num(n.closingFloat) < num(n.minFloat)).forEach(n => alerts.push(
         `<div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">⚠️ <b>${esc(n.name)}</b> is low: ${fmt(n.closingFloat)} <span class="text-slate-500">(top up ${fmt(num(n.minFloat) - num(n.closingFloat))})</span></div>`));
     if (lc && lc.rawDate < shiftDate(today, -1)) {
@@ -1403,7 +1428,7 @@ function renderHistory(m) {
 }
 function renderMoney(m, pending) {
     const recent = updateRequests.filter(r => r.status !== 'PENDING' && dateOfEntry(r).startsWith(selectedMonth())).slice(0, 5);
-    const pend = openMoves();
+    const pend = openMoves().filter(inBalances);
     $('money-pending').innerHTML = pend.length ? `<div class="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-3.5 space-y-1">
         <p class="text-sm font-bold text-slate-900">Waiting for the next closing</p>
         <p class="text-[11px] text-slate-500">These are counted in the next Close Day as owner money in/out (any month).</p>
@@ -1434,6 +1459,7 @@ function renderMoney(m, pending) {
                 <span class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">${MOVE_ICONS[type] || '•'}</span>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-slate-900">${esc((MOVE_TYPES[type] || {}).label || type)}${type === 'EXPENSE' ? ': ' + esc(c.category || 'Other') : ''}${type === 'COMMISSION_IN' || type === 'EXPENSE' ? ` <span class="${type === 'EXPENSE' ? 'text-rose-700' : 'text-teal-700'}">· for ${esc(monthLabel(monthOfEntry(c)))}</span>` : ''}</p>
+                    ${c.closedIn ? `<p class="text-[11px] text-slate-400">Counted in closing of ${esc(niceDate(c.closedIn))}</p>` : (c.type && inBalances(c) ? `<p class="text-[11px] text-amber-700 font-semibold">Not yet counted in a closing</p>` : '')}
                     <p class="text-xs text-slate-500 truncate">${esc(niceDate(dateOfEntry(c)))} · ${esc(c.target === OUTSIDE ? (type === 'EXPENSE' ? 'paid from pocket/bank' : 'outside balances') : (c.target || ''))}${c.note ? ' · ' + esc(c.note) : ''}</p>
                 </div>
                 <div class="text-right shrink-0">
