@@ -235,6 +235,7 @@
                     <button onclick="openMovementModal('CAPITAL')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-emerald-700 leading-tight">💰<br>Add Capital</button>
                     <button onclick="openMovementModal('COMMISSION_IN')" class="h-14 bg-white border border-slate-200 rounded-2xl shadow-sm text-[11px] font-bold text-teal-700 leading-tight">📥<br>Commission</button>
                 </div>
+                <div id="money-pending"></div>
                 <div id="money-requests"></div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2">
                     <div class="flex items-center justify-between gap-2">
@@ -669,6 +670,24 @@ function isBlank(v) { return v === null || v === undefined || v === ''; }
 function missingTx() { return sortedNetworks().filter(n => hasTx(n) && (isBlank(n.deposits) || isBlank(n.withdrawals))); }
 function depositsOf(log) { if (log.totalDeposits !== undefined) return num(log.totalDeposits); if (log.networks) return sum(Object.values(log.networks), x => x.deposits); return null; }
 function withdrawalsOf(log) { if (log.totalWithdrawals !== undefined) return num(log.totalWithdrawals); if (log.networks) return sum(Object.values(log.networks), x => x.withdrawals); return null; }
+function moveLabel(c) {
+    const type = moveType(c);
+    let l = (MOVE_TYPES[type] || {}).label || type;
+    if (type === 'EXPENSE') l += ': ' + (c.category || 'Other');
+    if ((type === 'COMMISSION_IN' || type === 'EXPENSE') && c.forMonth) l += ' (for ' + monthLabel(c.forMonth) + ')';
+    return l;
+}
+function placeLabel(c) {
+    if (c.target === OUTSIDE) return 'not in these balances';
+    const n = networks.find(x => x.code === c.target);
+    return n ? n.name : (c.target || '');
+}
+// Has today's balance for this network already been typed in (counted)?
+// If not, the app keeps it in step with money added/removed; if yes, it leaves the count alone.
+function balanceUntouched(n) {
+    if (typeof n.openingFloat !== 'number') return true;
+    return Math.round(num(n.closingFloat)) === Math.round(num(n.openingFloat) + openMovesFor(n.code));
+}
 function inBalances(c) { return c.target !== OUTSIDE; }
 // Daily profit = growth of the total money, ignoring owner money in/out.
 function dayProfitOf(log) {
@@ -1086,7 +1105,9 @@ function reviewRows(r) {
     }
     const down = Math.round(r.profit) < 0;
     return vol + row(t('rvOpening'), fmt(r.opening))
-        + (Math.round(r.moves) ? row(t('rvMoves'), fmtSigned(r.moves)) : '')
+        + (Math.round(r.moves) ? row(t('rvMoves'), fmtSigned(r.moves))
+            + `<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1">${openMoves().filter(inBalances).map(c =>
+                `<div class="flex justify-between gap-2 text-[11px]"><span>${esc(moveLabel(c))} · ${esc(placeLabel(c))} · ${esc(niceDate(dateOfEntry(c)))}${c.by ? ' · ' + esc(c.by) : ''}</span><b class="shrink-0">${fmtSigned(c.amount)}</b></div>`).join('')}</div>` : '')
         + row(t('rvClosingTotal'), fmt(r.actual))
         + '<div class="border-t border-slate-200 my-1"></div>'
         + `<div class="flex justify-between items-center gap-2 ${down ? 'bg-rose-50' : 'bg-emerald-50'} rounded-xl p-2.5"><span class="font-bold">${esc(down ? t('moneyDown') : t('rvProfit'))}</span>${profitBadge(r.profit, true)}</div>`
@@ -1283,6 +1304,8 @@ function renderHome(m, o, pending) {
     if (lc && dayProfitOf(lc) !== null && Math.round(dayProfitOf(lc)) < 0) {
         alerts.push(`<button onclick="showClosure('${esc(lc.id)}')" class="w-full text-left p-3 rounded-xl border border-rose-200 bg-rose-50 text-sm">📉 Money went down <b class="text-rose-700">${fmtSigned(dayProfitOf(lc))}</b> on ${esc(niceDate(lc.rawDate))}<div class="text-xs text-slate-600 mt-0.5">${esc(lc.varianceNote || '')}</div></button>`);
     }
+    const pendMoves = openMoves().filter(inBalances);
+    if (!lockedToday && pendMoves.length) alerts.push(`<button onclick="showTab('money')" class="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">💵 <b>${fmtSigned(sum(pendMoves, c => c.amount))}</b> owner money in/out will be counted in today's closing (${pendMoves.length} entr${pendMoves.length === 1 ? 'y' : 'ies'}) <b class="text-blue-600">— view</b></button>`);
     networks.filter(n => num(n.closingFloat) < num(n.minFloat)).forEach(n => alerts.push(
         `<div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">⚠️ <b>${esc(n.name)}</b> is low: ${fmt(n.closingFloat)} <span class="text-slate-500">(top up ${fmt(num(n.minFloat) - num(n.closingFloat))})</span></div>`));
     if (lc && lc.rawDate < shiftDate(today, -1)) {
@@ -1364,6 +1387,15 @@ function renderHistory(m) {
 }
 function renderMoney(m, pending) {
     const recent = updateRequests.filter(r => r.status !== 'PENDING' && dateOfEntry(r).startsWith(selectedMonth())).slice(0, 5);
+    const pend = openMoves();
+    $('money-pending').innerHTML = pend.length ? `<div class="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-3.5 space-y-1">
+        <p class="text-sm font-bold text-slate-900">Waiting for the next closing</p>
+        <p class="text-[11px] text-slate-500">These are counted in the next Close Day as owner money in/out (any month).</p>
+        ${pend.map(c => `<div class="flex items-center justify-between gap-2 py-2 border-t border-amber-200/70">
+            <div class="min-w-0"><p class="text-sm font-bold">${esc(moveLabel(c))}</p><p class="text-xs text-slate-500">${esc(niceDate(dateOfEntry(c)))} · ${esc(placeLabel(c))}${c.note ? ' · ' + esc(c.note) : ''}${c.by ? ' · ' + esc(c.by) : ''}</p></div>
+            <div class="text-right shrink-0"><p class="text-sm font-black ${num(c.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtSigned(c.amount)}</p>
+            <button onclick="deleteMovement('${esc(c.id)}')" class="text-[11px] font-bold text-rose-600">Delete</button></div></div>`).join('')}
+    </div>` : '';
     $('money-requests').innerHTML = (pending.length || recent.length)
         ? `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 space-y-2"><p class="text-sm font-bold text-slate-900">Adjustment requests</p>${[...pending, ...recent].map(requestCard).join('')}</div>` : '';
     const cats = Object.entries(m.expenseByCat).sort((a, b) => b[1] - a[1]);
@@ -1635,7 +1667,7 @@ async function saveMovement() {
     if (type === 'COMMISSION_IN' || type === 'EXPENSE') entry.forMonth = $('mv-month').value || localDate().slice(0, 7);
     if (type === 'EXPENSE') entry.category = $('mv-cat').value || 'Other';
     batch.set(db.collection('capitalLedger').doc(), entry);
-    if (net) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(signed) });
+    if (net && balanceUntouched(net)) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(signed) });
     write(batch.commit());
     closeModal('modal-movement');
     toast(`${type === 'EXPENSE' ? $('mv-cat').value : MOVE_TYPES[type].label}: ${fmt(amt)} saved${type === 'COMMISSION_IN' || type === 'EXPENSE' ? ' for ' + monthLabel($('mv-month').value) : ''}`);
@@ -1661,11 +1693,12 @@ function saveCommissionMonth() {
 function deleteMovement(id) {
     const c = capitalLedger.find(x => x.id === id);
     if (!c || !c.type || c.closedIn) return;
-    if (!confirm(`Delete this ${MOVE_TYPES[c.type].label.toLowerCase()} of ${fmt(Math.abs(c.amount))}? The balance will be reversed.`)) return;
     const net = networks.find(n => n.code === c.target);
+    const counted = net && !balanceUntouched(net);
+    if (!confirm(`Delete "${moveLabel(c)}" of ${fmt(Math.abs(c.amount))}?` + (counted ? `\n\nToday's ${net.name} balance has already been counted, so it will be left as counted.` : ''))) return;
     const batch = db.batch();
     batch.delete(db.collection('capitalLedger').doc(id));
-    if (net) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(-num(c.amount)) });
+    if (net && !counted) batch.update(db.collection('networks').doc(net.id), { closingFloat: firebase.firestore.FieldValue.increment(-num(c.amount)) });
     write(batch.commit());
 }
 
