@@ -1648,6 +1648,16 @@ async function reopenClosure(id) {
     const s = historicalLogs.find(l => l.id === id);
     if (!s || !isNewFormat(s) || lastClosure().id !== id) return;
     if (!confirm(`Reopen the closing of ${s.rawDate}? Balances and expenses will be restored so it can be corrected and locked again.`)) return;
+    // Safety: this phone may be showing old data. Ask the server whether this is really
+    // the latest closing before undoing anything; refuse if offline or if a later day exists.
+    try {
+        const fresh = await withTimeout(db.collection('dailySummaries').get({ source: 'server' }), 8000);
+        if (!fresh || fresh === TIMEOUT) { toast('Reopening needs an internet connection. Try again when online.', 'error'); return; }
+        const latest = fresh.docs.map(x => x.data().rawDate || x.id).sort().pop();
+        if (latest !== s.rawDate) { toast(`This phone was showing old data: ${niceDate(latest)} is the latest closing. Nothing was changed.`, 'error'); return; }
+        const led = await withTimeout(db.collection('capitalLedger').get({ source: 'server' }), 8000);
+        if (led && led !== TIMEOUT) capitalLedger = led.docs.map(x => ({ id: x.id, ...x.data() }));
+    } catch (e) { toast('Reopening needs an internet connection. Try again when online.', 'error'); return; }
     const stillOpen = openMoves();
     const batch = db.batch();
     Object.keys(s.networks || {}).forEach(code => {
