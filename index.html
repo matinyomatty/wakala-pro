@@ -375,14 +375,15 @@
         <div class="sheet bg-white p-5 rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto space-y-3 shadow-2xl">
             <div class="flex justify-between items-center"><h3 class="font-bold text-slate-900 text-sm" id="md-title">Add missed day</h3><button onclick="closeModal('modal-missed')" class="text-slate-400 font-bold px-2">✕</button></div>
             <p id="md-info" class="text-[11px] text-slate-500"></p>
-            <p class="text-[11px] text-slate-500">Enter the day's deposits and withdrawals. Add the closing balances only if they were counted that day (e.g. written down); otherwise leave them empty.</p>
+            <p class="text-[11px] text-slate-500">Enter everything for that day, as in a normal closing: each network's deposits, withdrawals and counted closing balance, plus expenses. Profit is worked out from the day before.</p>
+            <div id="md-moves"></div>
             <div id="md-networks" class="space-y-2"></div>
             <div class="border border-slate-200 rounded-xl p-3 space-y-2">
                 <div class="flex justify-between items-center"><b class="text-sm">Expenses</b><button onclick="mdAddExpense()" class="text-xs font-bold text-blue-600">+ Add</button></div>
                 <div id="md-expenses" class="space-y-1.5"></div>
             </div>
             <div id="md-summary" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm space-y-1"></div>
-            <div><label class="text-[10px] font-bold text-slate-600 uppercase">Note</label><input type="text" id="md-note" class="w-full h-11 px-2.5 border border-slate-300 rounded-xl mt-0.5"></div>
+            <div><label class="text-[10px] font-bold text-slate-600 uppercase" id="md-note-label">Note</label><input type="text" id="md-note" class="w-full h-11 px-2.5 border border-slate-300 rounded-xl mt-0.5"></div>
             <div id="md-error" class="hidden p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold text-center"></div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeModal('modal-missed')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
@@ -1558,8 +1559,8 @@ function showClosure(id) {
         html += `<p class="font-bold text-sm mt-3">Corrections</p>` + s.editHistory.slice().reverse().map(h => `<div class="text-xs py-1.5 border-b border-slate-100"><b>${esc(h.by)}</b> · ${esc(niceDate(String(h.at).slice(0, 10)))}<br>${esc(h.reason)}<br><span class="text-slate-500">Before: closing ${fmt(h.before.closingTotal)}, volume ${fmt(h.before.volume)}, expenses ${fmt(h.before.expenses)}</span></div>`).join('');
     }
     if (s.missedDay && !s.balancesKnown) {
-        html += `<p class="text-xs text-amber-700 mt-3">Added as a missed day without balances: volume and expenses only. Its profit is included in the next closed day.</p>`;
-        if (isBoss(currentUser)) html += `<button onclick="deleteMissedDay('${esc(s.id)}')" class="w-full h-11 mt-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-xl text-sm">Delete this missed-day entry</button>`;
+        html += `<p class="text-xs text-amber-700 mt-3">Added earlier as volume only (no balances). Its profit is inside the next closed day — re-enter it with full details to give it its own profit.</p>`;
+        if (isBoss(currentUser)) html += `<button onclick="deleteMissedDay('${esc(s.id)}')" class="w-full h-11 mt-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold rounded-xl text-sm">Re-enter this day with full details</button>`;
     } else if (isNewFormat(s) && isBoss(currentUser)) {
         html += `<button onclick="openEditDay('${esc(s.id)}')" class="w-full h-11 mt-3 bg-blue-600 text-white font-bold rounded-xl text-sm">✏️ Edit all entries of this day</button>`;
     } else if (!isNewFormat(s)) {
@@ -1600,7 +1601,7 @@ function openMissedDay(d) {
     const next = historicalLogs.filter(l => l.rawDate > d && !isVolumeOnly(l)).sort((a, b) => a.rawDate.localeCompare(b.rawDate))[0];
     $('md-title').innerText = 'Add missed day: ' + niceDate(d);
     $('md-info').innerText = `Between ${prev ? niceDate(prev.rawDate) : '—'} and ${next ? niceDate(next.rawDate) : '—'} (already closed).`;
-    const inp = (code, key, big) => `<input type="number" inputmode="numeric" data-code="${esc(code)}" data-key="${key}" placeholder="${key === 'closing' ? 'leave empty if unknown' : '0'}" oninput="mdRecalc()"
+    const inp = (code, key, big) => `<input type="number" inputmode="numeric" data-code="${esc(code)}" data-key="${key}" placeholder="0" oninput="mdRecalc()"
         class="w-full ${big ? 'h-11 border-emerald-300 bg-emerald-50/40' : 'h-10 border-slate-300'} px-2.5 border rounded-xl font-bold mt-0.5">`;
     $('md-networks').innerHTML = sortedNetworks().map(n => `
         <div class="border border-slate-200 rounded-xl p-3 space-y-2">
@@ -1608,7 +1609,7 @@ function openMissedDay(d) {
             ${hasTx(n) ? `<div class="grid grid-cols-2 gap-2">
                 <div><label class="text-[10px] font-bold text-slate-500">Deposits</label>${inp(n.code, 'deposits')}</div>
                 <div><label class="text-[10px] font-bold text-slate-500">Withdrawals</label>${inp(n.code, 'withdrawals')}</div></div>` : ''}
-            <div><label class="text-[10px] font-bold text-slate-600">Closing balance that day (if known)</label>${inp(n.code, 'closing', true)}</div>
+            <div><label class="text-[10px] font-bold text-slate-600">Closing balance that day <span class="text-rose-500">*</span></label>${inp(n.code, 'closing', true)}</div>
         </div>`).join('');
     $('md-expenses').innerHTML = '';
     $('md-note').value = '';
@@ -1631,44 +1632,52 @@ function mdCollect() {
         const prevClose = prev && prev.networks && prev.networks[n.code] ? prev.networks[n.code].closing : null;
         nets[n.code] = { name: n.name || n.code, opening: prevClose === null || prevClose === undefined ? null : num(prevClose), deposits: 0, withdrawals: 0, commission: 0, closing: null };
     });
-    let filled = 0, total = 0;
+    let filled = 0, total = 0, blanks = [];
     document.querySelectorAll('#md-networks input[data-code]').forEach(el => {
         const v = el.value.trim();
+        if (v === '') blanks.push(nets[el.dataset.code].name);
         if (el.dataset.key === 'closing') { total++; if (v !== '') { filled++; nets[el.dataset.code].closing = num(v); } }
         else nets[el.dataset.code][el.dataset.key] = num(v);
     });
+    // Owner money in/out dated on the missed day that was counted in the next closing moves to this day.
+    const dayMoves = next ? capitalLedger.filter(c => c.type && inBalances(c) && dateOfEntry(c) === d && c.closedIn === next.rawDate) : [];
+    const moves = sum(dayMoves, c => c.amount);
     const items = [...document.querySelectorAll('#md-expenses .md-exp')].map(r => ({ note: r.querySelector('.md-exp-note').value.trim(), amount: num(r.querySelector('.md-exp-amt').value) })).filter(e => e.note || e.amount);
     const tx = Object.keys(nets).filter(c => c !== DRAWER_CODE);
     const deposits = sum(tx, c => nets[c].deposits), withdrawals = sum(tx, c => nets[c].withdrawals);
     const withBalances = filled === total && total > 0;
     const closingTotal = withBalances ? sum(Object.values(nets), n => n.closing) : null;
     const opening = prev && isNewFormat(prev) && prev.closingTotal !== undefined ? num(prev.closingTotal) : null;
-    const profit = withBalances && opening !== null ? closingTotal - opening : null;
-    const nextProfit = withBalances && next && isNewFormat(next) ? num(next.closingTotal) - closingTotal - num(next.movementsTotal) : null;
-    return { d, prev, next, nets, items, deposits, withdrawals, volume: deposits + withdrawals, filled, total, withBalances, closingTotal, opening, profit, nextProfit, expensesTotal: sum(items, e => e.amount) };
+    const profit = withBalances && opening !== null ? closingTotal - opening - moves : null;
+    const nextProfit = withBalances && next && isNewFormat(next) ? num(next.closingTotal) - closingTotal - (num(next.movementsTotal) - moves) : null;
+    return { d, prev, next, nets, items, deposits, withdrawals, volume: deposits + withdrawals, filled, total, blanks: [...new Set(blanks)], withBalances, closingTotal, opening, profit, nextProfit, dayMoves, moves, expensesTotal: sum(items, e => e.amount) };
 }
 function mdRecalc() {
     if (!missedDate) return;
     const r = mdCollect();
     const L = (a, b, cls) => `<div class="flex justify-between gap-2 ${cls || ''}"><span>${a}</span><b class="text-right">${b}</b></div>`;
+    $('md-moves').innerHTML = r.dayMoves.length ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] space-y-1"><b>Owner money in/out on this day</b> (moves here from ${esc(niceDate(r.next.rawDate))})${r.dayMoves.map(c => `<div class="flex justify-between gap-2"><span>${esc(moveLabel(c))} · ${esc(placeLabel(c))}</span><b>${fmtSigned(c.amount)}</b></div>`).join('')}</div>` : '';
     let h = L('Volume', fmt(r.volume), 'text-blue-700') + L('Deposits · Withdrawals', fmt(r.deposits) + ' · ' + fmt(r.withdrawals), 'text-xs text-slate-500');
     if (r.withBalances) {
-        h += L('Closing total', fmt(r.closingTotal))
+        h += L(`Opening (${r.prev ? esc(niceDate(r.prev.rawDate)) : '—'} closing)`, r.opening === null ? '—' : fmt(r.opening))
+            + (Math.round(r.moves) ? L('Owner money in/out', fmtSigned(r.moves)) : '')
+            + L('Closing total', fmt(r.closingTotal))
             + `<div class="flex justify-between border-t pt-1.5 mt-1"><span class="font-bold">Profit ${esc(niceDate(r.d))}</span>${profitBadge(r.profit, true)}</div>`
             + (r.next ? L(`Profit ${niceDate(r.next.rawDate)}`, `${fmtSigned(dayProfitOf(r.next))} → <span class="text-blue-700">${fmtSigned(r.nextProfit)}</span>`, 'text-xs') : '');
-    } else if (r.filled > 0) {
-        h += `<p class="text-xs text-rose-700 font-bold">Fill every closing balance, or leave them all empty.</p>`;
     } else {
-        h += `<p class="text-xs text-slate-500">No balances: only volume and expenses are saved. Profit for ${esc(niceDate(r.d))} stays included in ${r.next ? esc(niceDate(r.next.rawDate)) : 'the next day'}.</p>`;
+        h += `<p class="text-xs text-slate-500">Fill in every box to see the day's profit.</p>`;
     }
+    const down = r.profit !== null && Math.round(r.profit) < 0;
+    $('md-note-label').innerText = down ? 'Money went down that day — explain why (required)' : 'Note';
     $('md-summary').innerHTML = h;
 }
 async function saveMissedDay() {
     const r = mdCollect();
     const err = m => { $('md-error').innerText = m; $('md-error').classList.remove('hidden'); };
     if (!isSkippedDate(r.d)) return err('This day can no longer be added.');
-    if (r.filled > 0 && !r.withBalances) return err('Fill every closing balance, or leave them all empty.');
-    if (!r.volume && !r.expensesTotal && !r.withBalances) return err('Enter at least the deposits and withdrawals.');
+    if (r.blanks.length) return err('Fill in every box (type 0 if nothing) for: ' + r.blanks.join(', '));
+    if (r.opening === null) return err('The day before has no closing total to start from.');
+    if (Math.round(r.profit) < 0 && !$('md-note').value.trim()) return err('Money went down that day — explain why.');
     // Make sure this phone isn't showing old data.
     try {
         const fresh = await withTimeout(db.collection('dailySummaries').get({ source: 'server' }), 8000);
@@ -1680,22 +1689,23 @@ async function saveMissedDay() {
         version: 3, rawDate: r.d, missedDay: true, balancesKnown: r.withBalances,
         volume: r.volume, totalDeposits: r.deposits, totalWithdrawals: r.withdrawals, commission: 0, lipaKwaSimuCommission: 0,
         expenses: r.expensesTotal, expenseItems: r.items,
-        openingTotal: r.withBalances ? r.opening : null, movementsTotal: 0,
+        openingTotal: r.withBalances ? r.opening : null, movementsTotal: r.moves,
         closingTotal: r.withBalances ? r.closingTotal : null, moneyPosition: r.withBalances ? r.closingTotal : null,
         dayProfit: r.profit, feesEarned: r.profit === null ? null : r.profit + r.expensesTotal,
         variance: null, varianceNote: $('md-note').value.trim(), networks: r.nets,
         submittedBy: currentUser.name || '', submittedById: currentUser.id, submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        editHistory: [{ at: new Date().toISOString(), by: currentUser.name || '', reason: 'Added as a missed day' + (r.withBalances ? ' with counted balances' : ' (volume only)'), before: { closingTotal: 0, volume: 0, expenses: 0, profit: null } }]
+        editHistory: [{ at: new Date().toISOString(), by: currentUser.name || '', reason: 'Added as a missed day', before: { closingTotal: 0, volume: 0, expenses: 0, profit: null } }]
     });
     if (r.withBalances && r.next && isNewFormat(r.next)) {
         const nn = JSON.parse(JSON.stringify(r.next.networks || {}));
         Object.keys(nn).forEach(c => { if (r.nets[c] && r.nets[c].closing !== null) nn[c].opening = r.nets[c].closing; });
         batch.update(db.collection('dailySummaries').doc(r.next.id), {
-            openingTotal: r.closingTotal, networks: nn, dayProfit: r.nextProfit, feesEarned: r.nextProfit + num(r.next.expenses),
+            openingTotal: r.closingTotal, networks: nn, movementsTotal: num(r.next.movementsTotal) - r.moves, dayProfit: r.nextProfit, feesEarned: r.nextProfit + num(r.next.expenses),
             editHistory: (r.next.editHistory || []).concat([{ at: new Date().toISOString(), by: currentUser.name || '', reason: `Opening changed: missed day ${r.d} was added before it`,
                 before: { closingTotal: num(r.next.closingTotal), volume: num(r.next.volume), expenses: num(r.next.expenses), profit: dayProfitOf(r.next) } }])
         });
     }
+    r.dayMoves.forEach(c => batch.update(db.collection('capitalLedger').doc(c.id), { closedIn: r.d }));
     try {
         await withTimeout(batch.commit(), 10000);
         closeModal('modal-missed'); missedDate = null;
@@ -1705,9 +1715,11 @@ async function saveMissedDay() {
 async function deleteMissedDay(id) {
     const s = historicalLogs.find(l => l.id === id);
     if (!s || !s.missedDay || s.balancesKnown || !isBoss(currentUser)) return;
-    if (!confirm(`Delete the missed-day entry for ${niceDate(s.rawDate)}? (Volume only — no balances are affected.)`)) return;
-    write(db.collection('dailySummaries').doc(id).delete());
+    if (!confirm(`Re-enter ${niceDate(s.rawDate)} with full details? The volume-only entry will be replaced.`)) return;
+    try { await withTimeout(db.collection('dailySummaries').doc(id).delete(), 8000); } catch (e) { toast('Could not remove the old entry: ' + (e.code || e.message), 'error'); return; }
+    historicalLogs = historicalLogs.filter(l => l.id !== id);
     closeModal('modal-closure');
+    openMissedDay(s.rawDate);
 }
 
 // ---------- Edit a closed day (Owner/Admin) ----------
