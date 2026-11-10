@@ -457,7 +457,9 @@
                 <div><label class="text-[10px] font-bold text-slate-600 uppercase">Name</label>
                     <input type="text" id="net-name" placeholder="e.g. HaloPesa Float" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs"></div>
                 <div><label class="text-[10px] font-bold text-slate-600 uppercase">Minimum float target (TZS)</label>
-                    <input type="number" inputmode="numeric" id="net-min" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs"></div>
+                    <input type="number" inputmode="numeric" id="net-min" class="w-full h-11 p-2.5 border border-slate-300 rounded-xl text-xs">
+                    <p class="text-[10px] text-slate-400 mt-0.5">You get a "top up" alert on Home when the balance falls below this.</p></div>
+                <label class="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" id="net-inactive" class="w-5 h-5"> Not used — hide from daily closing (balance is kept)</label>
             </div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeModal('modal-network')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
@@ -565,6 +567,7 @@ const MOVE_TYPES = {
 // ===================================================================
 const I18N = {
   en: {
+    notUsed:'not used (hidden from closing)', lipaFees:'Lipa fees today', noTxBtn:'No transactions today → fill 0',
     skippedDay:'This day was skipped and a later day ({d}) is already closed, so it can\'t be closed here. The Owner can add it as a missed day (History or the button below).',
     movesChanged:'New owner money in/out was found. Check the review again, then lock.',
     staleMove:'Entered before the last closing. If this money was already in the balances counted since then, the Owner should tap "Already counted?" in Money before locking.',
@@ -598,6 +601,7 @@ const I18N = {
     reloginNeeded:'For security, log out and log back in, then try again.', saveFailed:'Could not save: ', expAdded:'Expense added'
   },
   sw: {
+    notUsed:'haitumiki (imefichwa)', lipaFees:'Ada za Lipa leo', noTxBtn:'Hakuna miamala leo → weka 0',
     skippedDay:'Siku hii iliachwa na siku ya baadaye ({d}) imeshafungwa, hivyo haiwezi kufungwa hapa. Mmiliki anaweza kuiongeza kama siku iliyosahaulika (History).',
     movesChanged:'Kuna pesa mpya za mmiliki zimeongezwa. Hakiki tena kisha funga.',
     staleMove:'Iliingizwa kabla ya kufunga kwa mwisho. Kama pesa hii ilishakuwemo kwenye salio lililohesabiwa, Mmiliki abonyeze "Already counted?" kwenye Money kabla ya kufunga.',
@@ -709,7 +713,7 @@ function lksNet() { return networks.find(n => n.code === PROFIT_COMMISSION_CODE)
 function moveType(c) { return c.type || 'CAPITAL'; } // old entries had no type = capital
 function openMoves() { return capitalLedger.filter(c => c.type && !c.closedIn); }
 function openMovesFor(code) { return sum(openMoves().filter(c => c.target === code), c => c.amount); }
-function hasTx(n) { return n.code !== DRAWER_CODE; } // the cash drawer has no deposits/withdrawals of its own
+function hasTx(n) { return n.code !== DRAWER_CODE && !n.inactive; } // the cash drawer has no deposits/withdrawals of its own
 function isBlank(v) { return v === null || v === undefined || v === ''; }
 function missingTx() { return sortedNetworks().filter(n => hasTx(n) && (isBlank(n.deposits) || isBlank(n.withdrawals))); }
 function depositsOf(log) { if (log.totalDeposits !== undefined) return num(log.totalDeposits); if (log.networks) return sum(Object.values(log.networks), x => x.deposits); return null; }
@@ -739,7 +743,13 @@ function dayProfitOf(log) {
     return num(log.closingTotal) - num(log.openingTotal) - num(log.movementsTotal);
 }
 // Older entries (before this version): fees typed in by the agent minus expenses.
-function legacyProfitOf(log) { return isNewFormat(log) ? null : num(log.lipaKwaSimuCommission) - num(log.expenses); }
+function isLipaCode(code) { return /lipa/i.test(String(code || '')); }
+function legacyProfitOf(log) {
+    if (isNewFormat(log)) return null;
+    const pc = log.providerCommissions || {};
+    const lipaFees = Object.keys(pc).filter(isLipaCode).reduce((t, k) => t + num(pc[k]), 0);
+    return Math.max(lipaFees, num(log.lipaKwaSimuCommission)) - num(log.expenses);
+}
 function profitBadge(v, big) {
     if (v === null || v === undefined) return '<span class="text-slate-400">—</span>';
     const r = Math.round(num(v));
@@ -1077,6 +1087,7 @@ function renderNetworkInputs() {
     if (container.contains(document.activeElement)) { pendingInputRender = true; return; }
     pendingInputRender = false;
     container.innerHTML = sortedNetworks().map(n => {
+        if (n.inactive) return `<div class="bg-slate-50 px-3.5 py-2.5 border border-dashed border-slate-200 rounded-2xl flex justify-between text-xs text-slate-500"><span>${esc(n.name)} · ${esc(t('notUsed'))}</span><b>${fmt(n.closingFloat)}</b></div>`;
         const opening = openingOf(n);
         const moves = openMovesFor(n.code);
         const dep = num(n.deposits), wd = num(n.withdrawals), cl = num(n.closingFloat);
@@ -1085,7 +1096,9 @@ function renderNetworkInputs() {
             if (n.code !== DRAWER_CODE && n.code !== PROFIT_COMMISSION_CODE && (dep || wd)) {
                 const expected = opening + moves - dep + wd;
                 const diff = cl - expected;
-                check = `<div class="text-[10px] mt-1 ${Math.round(diff) === 0 ? 'text-emerald-700' : 'text-amber-700'}">${esc(t('expectedFromTx'))}: <b>${fmt(expected)}</b> · ${esc(t('diff'))}: <b>${fmtSigned(diff)}</b>${Math.round(diff) !== 0 ? ' — ' + esc(t('diffHint')) : ''}</div>`;
+                check = isLipaCode(n.code) || isLipaCode(n.name)
+                    ? `<div class="text-[10px] mt-1 ${diff < 0 ? 'text-rose-700' : 'text-emerald-700'}">${esc(t('expectedFromTx'))}: <b>${fmt(expected)}</b> · ${esc(t('lipaFees'))}: <b>${fmtSigned(diff)}</b></div>`
+                    : `<div class="text-[10px] mt-1 ${Math.round(diff) === 0 ? 'text-emerald-700' : 'text-amber-700'}">${esc(t('expectedFromTx'))}: <b>${fmt(expected)}</b> · ${esc(t('diff'))}: <b>${fmtSigned(diff)}</b>${Math.round(diff) !== 0 ? ' — ' + esc(t('diffHint')) : ''}</div>`;
             } else {
                 check = `<div class="text-[10px] mt-1 text-slate-500">${esc(t('changeToday'))}: <b>${fmtSigned(cl - opening - moves)}</b></div>`;
             }
@@ -1102,6 +1115,7 @@ function renderNetworkInputs() {
                 <span class="font-bold text-sm text-slate-900">${esc(n.name)}</span>
                 <span class="text-[10px] text-slate-500 text-right">${esc(t('opening'))}<br><b class="text-slate-700">${opening === null ? '—' : fmt(opening + moves)}</b></span>
             </div>
+            ${hasTx(n) && (isBlank(n.deposits) || isBlank(n.withdrawals)) ? `<button onclick="noTx('${esc(n.id)}')" class="text-[11px] font-bold text-blue-600">${esc(t('noTxBtn'))}</button>` : ''}
             ${hasTx(n) ? `<div class="grid grid-cols-2 gap-2">
                 ${field('deposits', t('depositsTotal'), n.deposits, false, true)}
                 ${field('withdrawals', t('withdrawalsTotal'), n.withdrawals, false, true)}
@@ -1115,6 +1129,14 @@ document.addEventListener('focusout', () => setTimeout(() => {
     if (pendingInputRender && !$('network-inputs-container').contains(document.activeElement)) renderNetworkInputs();
 }, 0));
 
+function noTx(id) {
+    const n = networks.find(x => x.id === id);
+    if (!n) return;
+    if (isBlank(n.deposits)) n.deposits = 0;
+    if (isBlank(n.withdrawals)) n.withdrawals = 0;
+    write(db.collection('networks').doc(id).update({ deposits: n.deposits, withdrawals: n.withdrawals }));
+    renderNetworkInputs(); renderReview();
+}
 function updateNetworkVal(id, field, value) {
     const v = String(value).trim() === '' ? null : num(value);
     const n = networks.find(x => x.id === id);
@@ -1523,7 +1545,7 @@ function renderSettings() {
         <div class="flex items-center gap-3 py-3">
             <button onclick="openNetworkModal('${esc(n.id)}')" class="flex-1 min-w-0 text-left">
                 <span class="block text-sm font-bold text-slate-900">${esc(n.name)} <span class="text-slate-400 font-semibold text-xs">${esc(n.code)}</span></span>
-                <span class="block text-xs text-slate-500">Balance ${fmt(n.closingFloat)} · Min ${fmt(n.minFloat)}</span>
+                <span class="block text-xs text-slate-500">Balance ${fmt(n.closingFloat)} · Min ${fmt(n.minFloat)}${n.inactive ? ' · <b>not used</b>' : ''}${!num(n.minFloat) && !n.inactive ? ' · <span class="text-amber-600">no top-up alert set</span>' : ''}</span>
             </button>
             <button onclick="deleteNetwork('${esc(n.id)}')" class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 font-bold shrink-0" aria-label="Delete">✕</button>
         </div>`).join('');
@@ -2062,6 +2084,7 @@ function openNetworkModal(id) {
     $('net-code').readOnly = !!n;
     $('net-name').value = n ? n.name : '';
     $('net-min').value = n ? num(n.minFloat) : '';
+    $('net-inactive').checked = !!(n && n.inactive);
     openModal('modal-network');
 }
 function saveNetwork() {
@@ -2070,7 +2093,7 @@ function saveNetwork() {
     const min = num($('net-min').value);
     if (!name) return;
     if (id) {
-        write(db.collection('networks').doc(id).update({ name, minFloat: min }));
+        write(db.collection('networks').doc(id).update({ name, minFloat: min, inactive: $('net-inactive').checked }));
     } else {
         const code = $('net-code').value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
         if (!code) { toast('Enter a code (letters/numbers only).', 'warn'); return; }
