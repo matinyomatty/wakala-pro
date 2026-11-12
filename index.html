@@ -480,7 +480,8 @@
             <div><label class="text-[10px] font-bold text-slate-600 uppercase">Branch</label><input type="text" id="edit-user-branch" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5"></div>
             <div><label class="text-[10px] font-bold text-slate-600 uppercase">WhatsApp phone (e.g. 255712345678)</label><input type="tel" id="edit-user-phone" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5"></div>
             <div><label class="text-[10px] font-bold text-slate-600 uppercase">CallMeBot key (for WhatsApp alerts)</label><input type="text" id="edit-user-key" autocomplete="off" class="w-full h-10 p-2 border border-slate-300 rounded-xl text-xs font-semibold mt-0.5">
-                <p class="text-[9px] text-slate-400 mt-0.5">Get a key by sending “I allow callmebot to send me messages” to CallMeBot on WhatsApp from this phone.</p></div>
+                <p class="text-[9px] text-slate-400 mt-0.5">Get a key by sending “I allow callmebot to send me messages” to CallMeBot on WhatsApp from this phone.</p>
+                <button type="button" onclick="sendTestWhatsApp()" class="mt-1.5 h-9 px-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold">📱 Send test WhatsApp</button></div>
             <div class="flex justify-end gap-2 border-t pt-2.5">
                 <button onclick="closeModal('modal-edit-user')" class="h-10 px-3.5 border border-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
                 <button onclick="saveUserEditChanges()" class="h-10 px-3.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">Save</button>
@@ -1286,7 +1287,8 @@ async function doLock() {
         networks: snapshot,
         submittedBy: currentUser.name || '',
         submittedById: currentUser.id,
-        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        whatsappTo: whatsappRecipients(currentUser).map(x => `${x.name} (${x.phone})`)
     });
     networks.forEach(n => batch.update(db.collection('networks').doc(n.id), { deposits: null, withdrawals: null, commission: 0, openingFloat: num(n.closingFloat) }));
     expenses.forEach(e => batch.delete(db.collection('expenses').doc(e.id)));
@@ -1576,6 +1578,9 @@ function showClosure(id) {
         if ((s.expenseItems || []).length) html += `<p class="font-bold text-sm mt-3">Expenses</p>` + s.expenseItems.map(e => `<div class="flex justify-between text-sm py-1"><span>${esc(e.note)}</span><span>${fmt(e.amount)}</span></div>`).join('');
     } else {
         html += `<p class="text-sm">Older entry. Fees typed in: ${fmt(s.lipaKwaSimuCommission)} · Expenses ${fmt(s.expenses)} · Money position (old formula) ${fmt(s.moneyPosition)}</p>`;
+    }
+    if (Array.isArray(s.whatsappTo)) {
+        html += `<p class="text-xs mt-3 ${s.whatsappTo.length ? 'text-slate-500' : 'text-rose-700 font-bold'}">📱 ${s.whatsappTo.length ? 'WhatsApp report sent to: ' + esc(s.whatsappTo.join(', ')) : 'No WhatsApp report was sent: nobody had a phone number + CallMeBot key.'}</p>`;
     }
     if ((s.editHistory || []).length) {
         html += `<p class="font-bold text-sm mt-3">Corrections</p>` + s.editHistory.slice().reverse().map(h => `<div class="text-xs py-1.5 border-b border-slate-100"><b>${esc(h.by)}</b> · ${esc(niceDate(String(h.at).slice(0, 10)))}<br>${esc(h.reason)}<br><span class="text-slate-500">Before: closing ${fmt(h.before.closingTotal)}, volume ${fmt(h.before.volume)}, expenses ${fmt(h.before.expenses)}</span></div>`).join('');
@@ -2062,17 +2067,31 @@ function rejectAdjustment(reqId) {
 // Keys are stored on each Owner/Admin's account (not in this public code).
 function sendWhatsAppMessage(phone, apiKey, message) {
     const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}&apikey=${encodeURIComponent(apiKey)}`;
-    fetch(url, { mode: 'no-cors' }).catch(() => { const img = new Image(); img.src = url; });
+    // keepalive lets the request finish even if the agent closes the app right after locking
+    try { fetch(url, { mode: 'no-cors', keepalive: true }).catch(() => { const img = new Image(); img.src = url; }); }
+    catch (e) { const img = new Image(); img.src = url; }
 }
-function notifyBosses(message, alsoUser) {
-    const sent = new Set();
+function whatsappRecipients(alsoUser) {
+    const out = [], seen = new Set();
     accounts.forEach(a => {
         if (!(isBoss(a) || (alsoUser && a.id === alsoUser.id))) return;
         const phone = normalizePhone(a.phone);
-        if (!phone || !a.callmebotKey || sent.has(phone)) return;
-        sent.add(phone);
-        sendWhatsAppMessage(phone, a.callmebotKey, message);
+        if (!phone || !a.callmebotKey || seen.has(phone)) return;
+        seen.add(phone);
+        out.push({ name: a.name || '', phone, key: String(a.callmebotKey).trim() });
     });
+    return out;
+}
+function notifyBosses(message, alsoUser) {
+    const list = whatsappRecipients(alsoUser);
+    list.forEach(r => sendWhatsAppMessage(r.phone, r.key, message));
+    return list;
+}
+function sendTestWhatsApp() {
+    const phone = normalizePhone($('edit-user-phone').value), key = $('edit-user-key').value.trim();
+    if (!phone || !key) { toast('Enter the phone number and CallMeBot key first.', 'warn'); return; }
+    sendWhatsAppMessage(phone, key, `✅ Wakala Pro test message for ${$('edit-user-name').value.trim() || 'you'} — WhatsApp alerts are working.`);
+    toast(`Test sent to ${phone}. It should arrive within a minute. If not, check the number and key.`);
 }
 
 // ---------- Networks ----------
