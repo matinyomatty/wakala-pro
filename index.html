@@ -260,6 +260,7 @@
                     <p class="text-[11px] text-slate-400">Only Lipa kwa Simu commission counts as daily profit. Record other providers' month-end commission with "Commission In".</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+                    <div class="w-full flex justify-between items-center p-3.5 text-xs text-slate-400">App version <span>2026.11.12-1</span></div>
                     <button onclick="openProfileModal()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">My profile & PIN <span class="text-slate-400">›</span></button>
                     <button onclick="toggleLang()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">Language <span class="text-slate-500 text-xs lang-name">English</span></button>
                     <button onclick="handleLogout()" class="w-full text-left p-3.5 text-sm font-bold text-rose-600">Log out</button>
@@ -276,6 +277,12 @@
                 <button onclick="showTab('settings')" data-tab="settings" class="nav-btn h-16 flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold"><span class="text-lg">⚙️</span>Settings</button>
             </div>
         </nav>
+    </div>
+
+    <!-- UPDATING -->
+    <div id="update-overlay" class="hidden fixed inset-0 z-[90] bg-slate-900/90 flex flex-col items-center justify-center text-white gap-3">
+        <div class="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+        <p class="font-bold">Updating Wakala Pro…</p><p class="text-xs text-slate-300">Inasasishwa…</p>
     </div>
 
     <!-- TOAST -->
@@ -549,6 +556,43 @@ let currentStep = 1;
 let agentSuccessDate = null;
 let agentSuccessOffline = false;
 let isLocking = false;
+
+// ===================================================================
+// FORCED UPDATES: every phone switches to the newest version by itself.
+// To release: change APP_VERSION here AND "version" in version.json.
+// ===================================================================
+const APP_VERSION = '2026.11.12-1';
+let updatePending = false;
+function appBusy() {
+    if (isLocking) return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return true;
+    return [...document.querySelectorAll('[id^="modal-"]')].some(m => !m.classList.contains('hidden'));
+}
+async function applyUpdate() {
+    if (appBusy()) { setTimeout(applyUpdate, 15000); return; }
+    const o = document.getElementById('update-overlay');
+    if (o) o.classList.remove('hidden');
+    try {
+        if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+        if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); }
+    } catch (e) {}
+    const u = new URL(location.href); u.searchParams.set('v', Date.now());
+    location.replace(u.toString());
+}
+async function checkForUpdate() {
+    if (updatePending || !navigator.onLine) return;
+    try {
+        const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return;
+        const v = (await r.json()).version;
+        if (v && v !== APP_VERSION) { updatePending = true; applyUpdate(); }
+    } catch (e) {}
+}
+setTimeout(checkForUpdate, 3000);
+setInterval(checkForUpdate, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+window.addEventListener('online', checkForUpdate);
 
 const PROFIT_COMMISSION_CODE = 'LIPAKWASIMU';
 const DRAWER_CODE = 'DRAWER';
