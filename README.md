@@ -34,3 +34,9 @@ explain why before locking. Month-end commission can be recorded into one of the
 - `sw.js` – lets the app open without internet
 - `manifest.json`, `icon-*.png` – install to phone home screen
 - `firestore.rules` – who is allowed to change what
+
+## Releasing an update
+
+Change `APP_VERSION` in `index.html` and `"version"` in `version.json` to the same new value.
+Every phone checks this when the app is opened or brought back to the screen (and every 5 minutes)
+and reloads itself to the new version — never in the middle of locking a day or typing.
