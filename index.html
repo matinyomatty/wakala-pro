@@ -260,7 +260,7 @@
                     <p class="text-[11px] text-slate-400">Only Lipa kwa Simu commission counts as daily profit. Record other providers' month-end commission with "Commission In".</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-                    <div class="w-full flex justify-between items-center p-3.5 text-xs text-slate-400">App version <span>2026.11.12-1</span></div>
+                    <div class="w-full flex justify-between items-center p-3.5 text-xs text-slate-400">App version <span>2026.11.13-1</span></div>
                     <button onclick="openProfileModal()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">My profile & PIN <span class="text-slate-400">›</span></button>
                     <button onclick="toggleLang()" class="w-full flex justify-between items-center p-3.5 text-sm font-semibold">Language <span class="text-slate-500 text-xs lang-name">English</span></button>
                     <button onclick="handleLogout()" class="w-full text-left p-3.5 text-sm font-bold text-rose-600">Log out</button>
@@ -561,7 +561,7 @@ let isLocking = false;
 // FORCED UPDATES: every phone switches to the newest version by itself.
 // To release: change APP_VERSION here AND "version" in version.json.
 // ===================================================================
-const APP_VERSION = '2026.11.12-1';
+const APP_VERSION = '2026.11.13-1';
 let updatePending = false;
 function appBusy() {
     if (isLocking) return true;
@@ -1332,7 +1332,8 @@ async function doLock() {
         submittedBy: currentUser.name || '',
         submittedById: currentUser.id,
         submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        whatsappTo: whatsappRecipients(currentUser).map(x => `${x.name} (${x.phone})`)
+        whatsappTo: whatsappRecipients(currentUser).map(x => `${x.name} (${x.phone})`),
+        appVersion: APP_VERSION
     });
     networks.forEach(n => batch.update(db.collection('networks').doc(n.id), { deposits: null, withdrawals: null, commission: 0, openingFloat: num(n.closingFloat) }));
     expenses.forEach(e => batch.delete(db.collection('expenses').doc(e.id)));
